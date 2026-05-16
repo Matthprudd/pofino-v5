@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>POFINO V5 — Détour automatique</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
+body{overflow:hidden;background:#0b0b0b;color:white;}
+#map{height:100vh;width:100vw;}
+.appTitle{position:absolute;top:12px;left:14px;z-index:9999;background:rgba(10,10,10,.95);border:2px solid #ff6600;border-radius:16px;padding:12px 16px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.appTitle b{color:#ff6600;font-size:20px;display:block}.appTitle span{font-size:12px;color:#bbb}
+.searchBar{position:absolute;top:14px;left:250px;right:380px;z-index:9999;display:flex;gap:8px;background:rgba(10,10,10,.95);padding:10px;border-radius:16px;border:1px solid #333}
+.searchBar input{flex:1;padding:13px;border-radius:12px;border:1px solid #555;background:white;color:#111;font-size:15px}.searchBar button,.actionBtn{padding:12px 14px;border:none;border-radius:12px;background:#ff6600;color:#111;font-weight:900;cursor:pointer}.quickRoads{position:absolute;top:88px;left:250px;right:380px;z-index:9998;display:flex;gap:7px;overflow-x:auto;padding:8px;background:rgba(10,10,10,.88);border-radius:14px;border:1px solid #333}.chip{white-space:nowrap;padding:9px 12px;background:#191919;border:1px solid #444;color:white;border-radius:999px;font-size:12px;font-weight:bold;cursor:pointer}.chip:hover{background:#ff6600;color:#111}.toolDock{position:absolute;left:14px;top:150px;z-index:9999;display:flex;flex-direction:column;gap:9px}.tool{width:58px;height:58px;border-radius:16px;border:1px solid #444;background:#161616;color:#fff;font-size:23px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.35)}.tool.active,.tool:hover{background:#ff6600;color:#111;border-color:#ff6600}.rightPanel{position:absolute;right:14px;top:14px;bottom:14px;width:350px;z-index:9999;background:rgba(12,12,12,.97);border:2px solid #ff6600;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 10px 35px rgba(0,0,0,.5);transition:.28s ease}.rightPanel.collapsed{transform:translateX(375px)}
+.panelToggle{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:10000;background:rgba(12,12,12,.96);color:white;border:2px solid #ff6600;border-radius:18px;padding:12px 18px;font-weight:900;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.45);display:flex;align-items:center;gap:18px;min-width:260px;justify-content:space-between;font-size:18px}.panelToggle.active{background:rgba(12,12,12,.96);color:white}.toggleWrap{display:flex;align-items:center;gap:10px}.toggleText{font-size:18px;font-weight:900}.toggleSwitch{width:64px;height:34px;background:#222;border-radius:30px;position:relative;border:1px solid #444;transition:.25s}.toggleCircle{width:28px;height:28px;background:white;border-radius:50%;position:absolute;top:2px;left:2px;transition:.25s}.panelToggle.active .toggleSwitch{background:#ff6600}.panelToggle.active .toggleCircle{left:32px}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #333}.tab{padding:12px 4px;background:#181818;color:#aaa;text-align:center;font-size:11px;font-weight:bold;cursor:pointer}.tab.active{background:#ff6600;color:#111}.panelContent{overflow:auto;padding:14px}.card{background:#1b1b1b;border:1px solid #333;border-radius:16px;padding:12px;margin-bottom:12px}.card h3{color:#ff6600;font-size:16px;margin-bottom:8px}.field{width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:1px solid #444;background:#242424;color:#fff}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.small{font-size:12px;color:#bbb;line-height:1.4}.inventoryItem{background:#222;border-left:5px solid #ff6600;border-radius:13px;padding:10px;margin-bottom:9px;cursor:pointer}.inventoryItem b{display:block;font-size:14px}.inventoryItem small{color:#bbb;line-height:1.4}.statusBar{position:absolute;bottom:14px;left:88px;right:380px;z-index:9999;background:rgba(12,12,12,.96);border:1px solid #ff6600;border-radius:16px;padding:12px;font-size:13px;color:#ddd}.sign-label{color:#111;padding:6px 10px;border-radius:9px;font-weight:900;border:2px solid white;box-shadow:0 0 10px rgba(0,0,0,.6)}.results{position:absolute;top:138px;left:250px;right:380px;z-index:10000;background:#111;border:1px solid #ff6600;border-radius:14px;overflow:hidden;display:none}.result{padding:12px;border-bottom:1px solid #333;cursor:pointer}.result:hover{background:#ff6600;color:#111}.badge{display:inline-block;padding:4px 7px;border-radius:8px;background:#333;color:#ddd;font-size:11px;margin:3px 2px}.live{background:#ff6600;color:#111}.done{background:#0a9b51;color:white}.closed{background:#b00000;color:white}.pdfBox{background:#111;border:1px dashed #ff6600;border-radius:16px;padding:14px;margin-top:10px}.calendarRow{display:grid;grid-template-columns:72px 1fr;gap:8px;border-bottom:1px solid #333;padding:8px 0}.calendarRow b{color:#ff6600}.roadRow{padding:9px;border-bottom:1px solid #333;cursor:pointer}.roadRow:hover{background:#ff6600;color:#111}.roadRow small{display:block;color:#aaa}.roadRow:hover small{color:#111}@media(max-width:900px){.appTitle{left:10px;top:10px}.panelToggle{left:50%;right:auto;top:auto;bottom:14px;transform:translateX(-50%);min-width:250px}.searchBar{top:120px;left:10px;right:10px}.quickRoads{top:190px;left:10px;right:10px}.toolDock{top:252px}.rightPanel{left:10px;right:10px;top:auto;height:44vh;width:auto}.statusBar{display:none}.results{left:10px;right:10px;top:244px}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="appTitle"><b>POFINO V5</b><span>Détour automatique — chantier</span></div>
+<div class="searchBar"><input id="streetSearch" placeholder="Rechercher rue / boulevard / autoroute au Québec…" onkeydown="if(event.key==='Enter') searchStreet()"><button onclick="searchStreet()">Rechercher</button></div>
+<div class="quickRoads" id="quickRoads"></div>
+<div id="results" class="results"></div>
+<div class="toolDock"><button class="tool" id="moveBtn" onclick="setMode('move')">✋</button><button class="tool" id="workBtn" onclick="setMode('work')">🚧</button><button class="tool" id="detourBtn" onclick="setMode('detour')">↪</button><button class="tool" id="closedBtn" onclick="setMode('closed')">⛔</button><button class="tool" id="routeBtn" onclick="setMode('route')">〰</button><button class="tool" onclick="clearMap()">🗑</button></div>
+<button class="panelToggle active" onclick="togglePanel()" id="panelToggle">MENU</button>
+<div class="rightPanel" id="rightPanel"><div class="tabs"><div class="tab active" onclick="showTab('chantier',this)">CHANTIER</div><div class="tab" onclick="showTab('inventaire',this)">INVENT.</div><div class="tab" onclick="showTab('agenda',this)">AGENDA</div><div class="tab" onclick="showTab('repertoire',this)">RUES</div><div class="tab" onclick="showTab('pdf',this)">PDF</div></div><div class="panelContent" id="panelContent"></div></div>
+<div class="statusBar" id="status">V3 prête. Utilise une rue prioritaire ou recherche une rue au Québec.</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const map=L.map('map').setView([46.55,-72.85],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'© OpenStreetMap'}).addTo(map);
+const priorityRoads=[
+{name:'Avenue du Parc',city:'Montréal',lat:45.5208,lng:-73.5912,type:'artère urbaine'},
+{name:'Rue Ontario',city:'Montréal',lat:45.5325,lng:-73.5527,type:'artère urbaine'},
+{name:'Boulevard Saint-Laurent',city:'Montréal',lat:45.5187,lng:-73.5867,type:'artère majeure'},
+{name:'Rue Sherbrooke',city:'Montréal',lat:45.5174,lng:-73.5747,type:'artère majeure'},
+{name:'Boulevard René-Lévesque',city:'Montréal',lat:45.5017,lng:-73.5685,type:'centre-ville'},
+{name:'Autoroute 40',city:'Québec / Montréal',lat:45.5711,lng:-73.7089,type:'autoroute'},
+{name:'Autoroute 15',city:'Montréal / Laval',lat:45.5461,lng:-73.7286,type:'autoroute'},
+{name:'Autoroute 20',city:'Rive-Sud / Québec',lat:45.4298,lng:-73.4592,type:'autoroute'},
+{name:'Boulevard Pie-IX',city:'Montréal',lat:45.5542,lng:-73.5519,type:'artère majeure'},
+{name:'Boulevard Décarie',city:'Montréal',lat:45.4822,lng:-73.6309,type:'axe majeur'},
+{name:'Boulevard Taschereau',city:'Longueuil / Brossard',lat:45.4761,lng:-73.4714,type:'axe Rive-Sud'},
+{name:'Boulevard des Laurentides',city:'Laval',lat:45.5853,lng:-73.7201,type:'axe Laval'},
+{name:'Boulevard Charest',city:'Québec',lat:46.8124,lng:-71.2273,type:'artère Québec'},
+{name:'Boulevard Laurier',city:'Québec',lat:46.7691,lng:-71.2861,type:'artère Québec'},
+{name:'Autoroute 440',city:'Laval',lat:45.5805,lng:-73.7562,type:'autoroute'},
+{name:'Autoroute 640',city:'Rive-Nord',lat:45.7069,lng:-73.8822,type:'autoroute'}
+];
+let mode='move',selectedStreet='',selectedLatLng=null,selectedStreetLayer=null,panelCollapsed=false,layers=[],routePoints=[],routeLine=null,activeTab='chantier';
+let currentSigns=[];
+let currentRoutes=[];
+let inventory=JSON.parse(localStorage.getItem('pofinoInventoryV4')||localStorage.getItem('pofinoInventoryV3')||'[]');
+let pdfLibrary=JSON.parse(localStorage.getItem('pofinoPdfLibraryV4')||'[]');
+const today=new Date().toISOString().slice(0,10);
+function status(t){document.getElementById('status').innerText=t;}
+function setPanel(collapsed){panelCollapsed=collapsed;document.getElementById('rightPanel').classList.toggle('collapsed',collapsed);const btn=document.getElementById('panelToggle');btn.classList.toggle('active',!collapsed);btn.innerHTML=`<span>MENU</span><div class="toggleWrap"><span class="toggleText">${collapsed?'OFF':'ON'}</span><div class="toggleSwitch"><div class="toggleCircle"></div></div></div>`;}
+function togglePanel(){setPanel(!panelCollapsed);}function collapseForMap(){setPanel(true);}function openForForm(){setPanel(false);}function setMode(m){mode=m;document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));let id={move:'moveBtn',work:'workBtn',detour:'detourBtn',closed:'closedBtn',route:'routeBtn'}[m];if(id)document.getElementById(id).classList.add('active');status({move:'Mode déplacement.',work:'Clique pour placer TRAVAUX.',detour:'Clique pour placer DÉTOUR.',closed:'Clique pour placer RUE FERMÉE.',route:'Clique plusieurs points pour tracer un détour.'}[m]);collapseForMap();}
+function renderQuickRoads(){document.getElementById('quickRoads').innerHTML=priorityRoads.slice(0,12).map((r,i)=>`<button class="chip" onclick="selectPriority(${i})">${r.name}</button>`).join('');}
+function selectPriority(i){const r=priorityRoads[i];selectedStreet=r.name;selectedLatLng=[r.lat,r.lng];document.getElementById('streetSearch').value=r.name;highlightPoint(r.lat,r.lng,r.name);status(`${r.name} sélectionné — ${r.city}.`);renderPanel();openForForm();}
+function highlightPoint(lat,lng,label){if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);selectedStreetLayer=L.circle([lat,lng],{radius:450,color:'#ff6600',weight:4,fillColor:'#ffd400',fillOpacity:.25}).addTo(map);map.setView([lat,lng],16);let m=L.marker([lat,lng]).addTo(map).bindPopup(`<b>${label}</b><br>Rue prioritaire sélectionnée`).openPopup();layers.push(m);}
+async function searchStreet(){const q=document.getElementById('streetSearch').value.trim();if(!q){status('Écris une rue à rechercher.');return;}let local=priorityRoads.filter(r=>(r.name+' '+r.city).toLowerCase().includes(q.toLowerCase()));if(local.length){showLocalResults(local);return;}status('Recherche OpenStreetMap Québec...');const url=`https://nominatim.openstreetmap.org/search?format=json&limit=8&q=${encodeURIComponent(q+', Québec, Canada')}&addressdetails=1&polygon_geojson=1`;try{const res=await fetch(url,{headers:{Accept:'application/json'}});const data=await res.json();showResults(data,q);}catch(e){status('Recherche non disponible ici. Les rues prioritaires fonctionnent hors ligne.');}}
+function showLocalResults(data){const box=document.getElementById('results');box.innerHTML=data.map((r)=>`<div class="result" onclick="selectPriority(${priorityRoads.indexOf(r)})"><b>${r.name}</b><br><small>${r.city} — ${r.type}</small></div>`).join('');box.style.display='block';}
+function showResults(data,q){const box=document.getElementById('results');box.innerHTML='';if(!data.length){box.style.display='block';box.innerHTML='<div class="result">Aucun résultat. Essaie une rue majeure ou ajoute-la manuellement au chantier.</div>';return;}data.forEach(r=>{let d=document.createElement('div');d.className='result';d.innerHTML=r.display_name;d.onclick=()=>selectStreet(r,q);box.appendChild(d);});box.style.display='block';}
+function selectStreet(r,q){document.getElementById('results').style.display='none';selectedStreet=q;selectedLatLng=[+r.lat,+r.lon];if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);if(r.geojson){selectedStreetLayer=L.geoJSON(r.geojson,{style:{color:'#ff6600',weight:8,opacity:.95,fillColor:'#ffd400',fillOpacity:.18}}).addTo(map);map.fitBounds(selectedStreetLayer.getBounds(),{padding:[70,70],maxZoom:18});}else{highlightPoint(+r.lat,+r.lon,q);}let m=L.marker(selectedLatLng).addTo(map).bindPopup(`<b>${q}</b><br>Sélection Québec`).openPopup();layers.push(m);status('Rue trouvée et surlignée.');renderPanel();openForForm();}
+function showTab(tab,el){activeTab=tab;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(el)el.classList.add('active');renderPanel();}
+function generateReference(){const d=new Date();const y=String(d.getFullYear()).slice(2);const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');const n=String(inventory.length+1).padStart(4,'0');return `POF-${y}${m}${day}-${n}`;}
+function renderPanel(){const p=document.getElementById('panelContent');if(activeTab==='chantier'){p.innerHTML=`<div class="card"><h3>Fiche chantier actif</h3><input class="field" id="fRef" placeholder="Référence" value="${generateReference()}" readonly><input class="field" id="fStreet" placeholder="Rue" value="${selectedStreet}"><div class="grid2"><input class="field" id="fDate" type="date" value="${today}"><input class="field" id="fTime" type="time" value="08:00"></div><select class="field" id="fType"><option>Travaux</option><option>Détour</option><option>Rue fermée</option><option>Entrave partielle</option><option>Signalisation temporaire</option></select><select class="field" id="fStatus"><option>À préparer</option><option>Actif</option><option>Installé</option><option>À valider</option><option>Terminé</option></select><input class="field" id="fTeam" placeholder="Équipe / responsable" value="Équipe terrain #1"><textarea class="field" id="fNote" rows="3" placeholder="Notes terrain, intersections, durée, matériel..."></textarea><button class="actionBtn" onclick="saveChantier()">Créer / sauvegarder fiche</button></div><div class="card"><h3>Résumé</h3><span class="badge live">Actifs: ${inventory.filter(i=>i.status==='Actif').length}</span><span class="badge">À préparer: ${inventory.filter(i=>i.status==='À préparer').length}</span><span class="badge done">Terminés: ${inventory.filter(i=>i.status==='Terminé').length}</span></div><div class="card"><h3>Export rapide</h3><button class="actionBtn" onclick="generatePdfFromLatest()">Télécharger PDF dernière fiche</button><div id="pdfPreview" class="pdfBox small">Le PDF sera aussi ajouté à la bibliothèque interne.</div></div>`;}if(activeTab==='inventaire'){p.innerHTML=`<div class="card"><h3>Inventaire daté</h3><p class="small">Rues et axes en travaux répertoriés par date.</p></div>`+renderInventoryHtml();}if(activeTab==='agenda'){p.innerHTML=`<div class="card"><h3>Agenda chantier</h3><p class="small">Liste chronologique des interventions.</p></div>`+renderAgendaHtml();}if(activeTab==='repertoire'){p.innerHTML=`<div class="card"><h3>Répertoire MVP Québec</h3><p class="small">Rues/axes prioritaires pour valider le produit sans surcharger le système.</p></div>`+priorityRoads.map((r,i)=>`<div class="roadRow" onclick="selectPriority(${i})"><b>${r.name}</b><small>${r.city} — ${r.type}</small></div>`).join('');}
+if(activeTab==='pdf'){p.innerHTML=`<div class="card"><h3>Générateur PDF par référence</h3><input class="field" id="pdfRefInput" placeholder="Entrer numéro ex: POF-260514-0001"><button class="actionBtn" onclick="generatePdfByRef()">Générer / télécharger PDF</button><p class="small">Sur téléphone/tablette, le fichier sera téléchargé dans le dossier de téléchargement de l’appareil. La bibliothèque interne garde aussi une trace.</p></div><div class="card"><h3>Bibliothèque PDF interne</h3><div id="pdfList">${renderPdfLibrary()}</div></div>`;}}
+function renderPdfLibrary(){if(!pdfLibrary.length)return '<p class="small">Aucun PDF généré.</p>';return pdfLibrary.map((p,i)=>`<div class="inventoryItem"><b>${p.ref}</b><small>${p.fileName}<br>${p.created}<br>Rue: ${p.street}</small></div>`).join('');}
+function renderInventoryHtml(){if(!inventory.length)return '<div class="inventoryItem"><b>Aucun chantier</b><small>Crée une fiche.</small></div>';return inventory.map((i,idx)=>`<div class="inventoryItem" onclick="focusItem(${idx})"><b>${i.ref||'Sans référence'} — ${i.street}</b><small>${i.date} ${i.time} — ${i.type}<br>${i.status} — ${i.team}<br>${i.note||'Aucune note'}</small></div>`).join('');}
+function renderAgendaHtml(){if(!inventory.length)return '<div class="inventoryItem"><b>Aucune date</b><small>Les fiches sauvegardées apparaissent ici.</small></div>';return [...inventory].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(i=>`<div class="calendarRow"><b>${i.date}</b><div><strong>${i.ref||'Sans ref'} — ${i.street}</strong><br><small>${i.time} — ${i.type} — ${i.status}</small></div></div>`).join('');}
+function makeMarker(latlng,label,color,save=true){let icon=L.divIcon({className:'',html:`<div class="sign-label" style="background:${color}">${label}</div>`});let m=L.marker(latlng,{icon,draggable:true}).addTo(map);layers.push(m);if(save){currentSigns.push({lat:latlng.lat||latlng[0],lng:latlng.lng||latlng[1],label,color});m.on('dragend',()=>{const p=m.getLatLng();const s=currentSigns.find(x=>x.label===label&&x.color===color&&Math.abs(x.lat-(latlng.lat||latlng[0]))<0.0001&&Math.abs(x.lng-(latlng.lng||latlng[1]))<0.0001);if(s){s.lat=p.lat;s.lng=p.lng;}});}return m;}
+function createAutoDetour(latlng){
+  const lat=latlng.lat;
+  const lng=latlng.lng;
+  const offsetLat=0.0042;
+  const offsetLng=0.0062;
+  const points=[
+    [lat-offsetLat,lng-offsetLng],
+    [lat-offsetLat,lng+offsetLng],
+    [lat+offsetLat,lng+offsetLng],
+    [lat+offsetLat,lng-offsetLng]
+  ];
+  const line=L.polyline(points,{color:'#ffd400',weight:7,opacity:.95,dashArray:'10,8'}).addTo(map);
+  line.bindPopup('<b>Détour automatique proposé</b><br>Prototype : trajet contournant la rue barrée.');
+  layers.push(line);
+  currentRoutes.push({points,color:'#ffd400',auto:true,label:'Détour automatique proposé'});
+  makeMarker(points[0],'DÉBUT','#ffd400');
+  makeMarker(points[points.length-1],'FIN','#ffd400');
+  status('Rue barrée : détour automatique proposé et mémorisé dans la fiche.');
+}
+map.on('movestart',collapseForMap);map.on('zoomstart',collapseForMap);map.on('click',e=>{collapseForMap();selectedLatLng=[e.latlng.lat,e.latlng.lng];if(mode==='work')makeMarker(e.latlng,'TRAVAUX','#ff6600');if(mode==='detour')makeMarker(e.latlng,'DÉTOUR','#ffd400');if(mode==='closed'){
+  makeMarker(e.latlng,'FERMÉ','#d40000');
+  createAutoDetour(e.latlng);
+}if(mode==='route'){routePoints.push([e.latlng.lat,e.latlng.lng]);if(routeLine)map.removeLayer(routeLine);routeLine=L.polyline(routePoints,{color:'#ff6600',weight:7,opacity:.9}).addTo(map);currentRoutes=[...currentRoutes.filter(r=>!r.active),{active:true,points:routePoints,color:'#ff6600'}];}});
+function saveChantier(){let item={ref:document.getElementById('fRef').value||generateReference(),street:document.getElementById('fStreet').value||selectedStreet||'Rue à préciser',date:document.getElementById('fDate').value,time:document.getElementById('fTime').value,type:document.getElementById('fType').value,status:document.getElementById('fStatus').value,team:document.getElementById('fTeam').value,note:document.getElementById('fNote').value,latlng:selectedLatLng,signs:JSON.parse(JSON.stringify(currentSigns)),routes:JSON.parse(JSON.stringify(currentRoutes.map(r=>({points:r.points,color:r.color||'#ff6600',auto:r.auto||false,label:r.label||'Détour'})))),created:new Date().toLocaleString('fr-CA')};inventory.unshift(item);localStorage.setItem('pofinoInventoryV4',JSON.stringify(inventory));if(item.latlng){let c=item.type.includes('fermée')?'#d40000':item.type.includes('Détour')?'#ffd400':'#ff6600';makeMarker(item.latlng,item.type.toUpperCase(),c).bindPopup(`<b>${item.street}</b><br>${item.date} ${item.time}<br>${item.status}<br>${item.team}`);}status('Fiche sauvegardée dans l’inventaire V3.');renderPanel();}
+function focusItem(idx){let i=inventory[idx];restoreChantierMap(i);if(i.latlng)map.setView(i.latlng,17);status('Ancien chantier restauré: '+(i.ref||'Sans ref')+' — '+i.street);}
+function restoreChantierMap(item){
+  clearMap(false);
+  selectedStreet=item.street||'';
+  selectedLatLng=item.latlng||null;
+  currentSigns=[];
+  currentRoutes=[];
+  if(item.latlng){
+    selectedStreetLayer=L.circle(item.latlng,{radius:450,color:'#ff6600',weight:4,fillColor:'#ffd400',fillOpacity:.18}).addTo(map);
+  }
+  if(item.signs&&item.signs.length){
+    item.signs.forEach(s=>makeMarker([s.lat,s.lng],s.label,s.color,false));
+    currentSigns=JSON.parse(JSON.stringify(item.signs));
+  }
+  if(item.routes&&item.routes.length){
+    item.routes.forEach(r=>{
+      const line=L.polyline(r.points,{color:r.color||'#ff6600',weight:7,opacity:.9,dashArray:r.auto?'10,8':null}).addTo(map);
+      line.bindPopup(r.label||'Détour');
+      layers.push(line);
+      currentRoutes.push({points:r.points,color:r.color||'#ff6600',auto:r.auto||false,label:r.label||'Détour'});
+    });
+  }
+  renderPanel();
+}
+function generatePdfFromLatest(){if(!inventory.length){status('Aucune fiche à exporter.');return;}generatePdf(inventory[0]);}
+function generatePdfByRef(){const ref=document.getElementById('pdfRefInput').value.trim();const item=inventory.find(i=>(i.ref||'').toLowerCase()===ref.toLowerCase());if(!item){status('Référence introuvable dans l’inventaire.');return;}generatePdf(item);}
+function generatePdf(item){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(18);doc.text('POFINO — PLAN DE TRAVAIL CHANTIER',14,18);
+  doc.setFontSize(11);
+  let y=32;
+  const lines=[
+    ['Référence',item.ref||'Sans référence'],['Rue / Axe',item.street],['Date',item.date+' '+item.time],['Type',item.type],['Statut',item.status],['Équipe',item.team],['Créé',item.created],['Notes',item.note||'Aucune note']
+  ];
+  lines.forEach(row=>{doc.setFont(undefined,'bold');doc.text(row[0]+':',14,y);doc.setFont(undefined,'normal');doc.text(String(row[1]),55,y,{maxWidth:135});y+=10;});
+  doc.line(14,y,196,y);y+=10;
+  doc.setFont(undefined,'bold');doc.text('Instructions terrain',14,y);y+=8;doc.setFont(undefined,'normal');
+  doc.text('1. Vérifier la rue et les intersections avant installation.',14,y,{maxWidth:180});y+=8;
+  doc.text('2. Installer la signalisation selon le plan validé.',14,y,{maxWidth:180});y+=8;
+  doc.text('3. Confirmer le statut dans l’inventaire POFINO.',14,y,{maxWidth:180});y+=8;
+  doc.text('4. Conserver ce PDF comme feuille de travail officielle.',14,y,{maxWidth:180});
+  doc.setFontSize(9);doc.text('Prototype HTML — téléchargement local sur appareil. Hébergement et déploiement à la discrétion du client.',14,285);
+  const fileName=`${item.ref||'POFINO'}_${item.street.replace(/[^a-z0-9]/gi,'_')}.pdf`;
+  doc.save(fileName);
+  pdfLibrary.unshift({ref:item.ref||'Sans référence',fileName,street:item.street,created:new Date().toLocaleString('fr-CA')});
+  localStorage.setItem('pofinoPdfLibraryV4',JSON.stringify(pdfLibrary));
+  status('PDF téléchargé et ajouté à la bibliothèque interne: '+fileName);
+  if(activeTab==='pdf')renderPanel();
+}
+function clearMap(showStatus=true){layers.forEach(l=>map.removeLayer(l));if(routeLine)map.removeLayer(routeLine);if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);selectedStreetLayer=null;layers=[];routePoints=[];routeLine=null;currentSigns=[];currentRoutes=[];if(showStatus)status('Carte nettoyée. Inventaire conservé.');collapseForMap();}
+renderQuickRoads();setMode('move');setPanel(false);renderPanel();
+</script>
+</body>
+</html>
