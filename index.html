@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>POFINO V7 — Prototype pilote maximum</title>
+<title>POFINO V7.1 — Corridors Montréal</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -156,7 +156,7 @@ button:hover{filter:brightness(1.08);}
 .drawerHandle button{width:42px;height:54px;border-radius:16px 0 0 16px;padding:0;color:#111;background:var(--orange);}
 
 /* TABS */
-.tabs{display:grid;grid-template-columns:repeat(8,1fr);border-bottom:1px solid #333;}
+.tabs{display:grid;grid-template-columns:repeat(9,1fr);border-bottom:1px solid #333;}
 .tab{padding:12px 2px;background:#161616;color:#aaa;font-size:9.5px;text-align:center;font-weight:900;cursor:pointer;}
 .tab.active{background:var(--orange);color:#111;}
 .content{padding:14px;overflow:auto;}
@@ -252,6 +252,29 @@ textarea.field{resize:vertical;}
 .fileInputLabel{display:block;background:#222;border:1px dashed var(--orange);border-radius:14px;padding:12px;text-align:center;cursor:pointer;color:#fff;font-size:12px;font-weight:900;}
 .fileInputLabel input{display:none;}
 
+
+.corridorBtn{
+  width:100%;
+  background:#222;
+  color:#fff;
+  border:1px solid #444;
+  text-align:left;
+  margin-bottom:8px;
+  line-height:1.25;
+}
+.corridorBtn b{display:block;color:var(--orange);font-size:13px;}
+.corridorBtn small{display:block;color:#bbb;font-size:11px;margin-top:3px;}
+.roadTag{
+  display:inline-block;
+  padding:4px 7px;
+  border-radius:999px;
+  background:#2a2a2a;
+  border:1px solid #444;
+  color:#ddd;
+  font-size:10px;
+  margin:3px 2px;
+}
+
 @media(max-width:900px){
   .startGrid{grid-template-columns:1fr;}
   .startTitle b{font-size:34px;}
@@ -280,8 +303,8 @@ textarea.field{resize:vertical;}
     <div class="startGrid">
       <div>
         <div class="startTitle">
-          <b>POFINO V7</b>
-          <span>Prototype pilote maximum — signalisation temporaire intelligente</span>
+          <b>POFINO V7.1</b>
+          <span>Corridors Montréal intégrés — corridors Montréal intégrés</span>
           <small>Propulsé par SignalIA</small>
         </div>
         <div class="roleGrid">
@@ -305,7 +328,7 @@ textarea.field{resize:vertical;}
 
 <div class="topbar">
   <div class="brand">
-    <b>POFINO V7</b>
+    <b>POFINO V7.1</b>
     <span id="roleText">Prototype pilote maximum</span>
     <small>SignalIA intégré</small>
   </div>
@@ -345,6 +368,7 @@ textarea.field{resize:vertical;}
     <div class="tab" data-tab="inventaire" onclick="showTab('inventaire',this)">Invent.</div>
     <div class="tab" data-tab="terrain" onclick="showTab('terrain',this)">Terrain</div>
     <div class="tab" data-tab="conformite" onclick="showTab('conformite',this)">Conf.</div>
+    <div class="tab" data-tab="corridors" onclick="showTab('corridors',this)">Rues</div>
     <div class="tab" data-tab="data" onclick="showTab('data',this)">Data</div>
   </div>
   <div class="content" id="content"></div>
@@ -389,6 +413,55 @@ const priorityRoads=[
   {name:'Boulevard Laurier',city:'Québec',lat:46.7691,lng:-71.2861,type:'artère Québec'},
   {name:'Autoroute 440',city:'Laval',lat:45.5805,lng:-73.7562,type:'autoroute'},
   {name:'Autoroute 640',city:'Rive-Nord',lat:45.7069,lng:-73.8822,type:'autoroute'}
+];
+
+
+const montrealRoadMemory=[
+  {
+    id:'parc_plateau',
+    name:'Corridor Avenue du Parc / Plateau',
+    center:[45.5208,-73.5912],
+    zoom:16,
+    source:'Captures utilisateur — Avenue du Parc',
+    description:'Base de travail autour d’Avenue du Parc, Boulevard Saint-Laurent, Rue Clark et Avenue de l’Esplanade.',
+    roads:['Avenue du Parc','Boulevard Saint-Laurent','Rue Clark','Avenue de l’Esplanade','Rue Jeanne-Mance','Avenue Henri-Julien','Rue Drolet','Rue Rivard','Rue Bagg','Rue Saint-André','Rue Resther','Rue Berri','Rue Pontiac','Rue Rachel','Rue Duluth','Rue Mont-Royal'],
+    paths:[
+      {label:'Avenue du Parc',color:'#ff6600',points:[[45.5146,-73.5884],[45.5182,-73.5901],[45.5221,-73.5920],[45.5260,-73.5940]]},
+      {label:'Boulevard Saint-Laurent',color:'#ffd400',points:[[45.5118,-73.5848],[45.5165,-73.5872],[45.5214,-73.5897],[45.5256,-73.5918]]},
+      {label:'Rue Clark',color:'#0a9b51',points:[[45.5157,-73.5852],[45.5190,-73.5870],[45.5229,-73.5890]]},
+      {label:'Avenue de l’Esplanade',color:'#005cc8',points:[[45.5143,-73.5935],[45.5186,-73.5953],[45.5226,-73.5970]]}
+    ]
+  },
+  {
+    id:'ontario_frontenac',
+    name:'Corridor Rue Ontario / Frontenac',
+    center:[45.5325,-73.5527],
+    zoom:16,
+    source:'Captures utilisateur — Rue Ontario / Frontenac',
+    description:'Base de travail autour de Rue Ontario Est, Rue Frontenac, Rue d’Iberville et Rue du Havre.',
+    roads:['Rue Ontario Est','Rue Frontenac','Rue d’Iberville','Rue du Havre','Rue Hogan','Rue Dufresne','Rue Montgomery','Rue Fullum','Rue Parthenais','Rue Poupart','Rue Magnan','Rue Coupal','Rue Chapleau','Rue Larivière','Rue de Rouen','Rue Logan','Rue Rachel Est','Avenue Gascon'],
+    paths:[
+      {label:'Rue Ontario Est',color:'#ff6600',points:[[45.5262,-73.5588],[45.5298,-73.5558],[45.5330,-73.5528],[45.5362,-73.5497],[45.5394,-73.5466]]},
+      {label:'Rue Frontenac',color:'#ffd400',points:[[45.5298,-73.5615],[45.5322,-73.5568],[45.5346,-73.5521],[45.5370,-73.5473]]},
+      {label:'Rue d’Iberville',color:'#0a9b51',points:[[45.5268,-73.5580],[45.5292,-73.5535],[45.5315,-73.5491],[45.5338,-73.5449]]},
+      {label:'Rue du Havre',color:'#005cc8',points:[[45.5318,-73.5584],[45.5340,-73.5545],[45.5362,-73.5505]]},
+      {label:'Rue Hogan / Gascon',color:'#7b3ff2',points:[[45.5354,-73.5601],[45.5374,-73.5559],[45.5394,-73.5520]]}
+    ]
+  },
+  {
+    id:'saint_laurent_sherbrooke',
+    name:'Corridor Saint-Laurent / Sherbrooke',
+    center:[45.5174,-73.5747],
+    zoom:15,
+    source:'Répertoire POFINO + rues visibles Plateau/Centre',
+    description:'Corridor de validation pour artères majeures centrales.',
+    roads:['Boulevard Saint-Laurent','Rue Sherbrooke','Boulevard René-Lévesque','Rue Berri','Rue Saint-Denis','Rue Saint-Urbain','Rue Clark','Rue Ontario','Rue Rachel','Avenue du Parc'],
+    paths:[
+      {label:'Boulevard Saint-Laurent',color:'#ff6600',points:[[45.5064,-73.5681],[45.5126,-73.5730],[45.5188,-73.5780],[45.5246,-73.5826]]},
+      {label:'Rue Sherbrooke',color:'#ffd400',points:[[45.5102,-73.5852],[45.5149,-73.5772],[45.5196,-73.5692]]},
+      {label:'Rue Saint-Denis / Berri',color:'#005cc8',points:[[45.5113,-73.5658],[45.5165,-73.5705],[45.5220,-73.5754]]}
+    ]
+  }
 ];
 
 const signalCategories=['Tous','Danger','Obligation','Interdiction','Direction','Chantier','Piéton'];
@@ -456,6 +529,8 @@ let currentValidations=[];
 let simulatedPhotos=[];
 let auditLog=[];
 let layerVisibility={signs:true,routes:true,zone:true};
+let corridorLayers=[];
+let activeCorridorId='';
 let inventory=JSON.parse(localStorage.getItem('pofino_v7_inventory')||'[]');
 let pdfLibrary=JSON.parse(localStorage.getItem('pofino_v7_pdf')||'[]');
 const today=new Date().toISOString().slice(0,10);
@@ -744,6 +819,118 @@ function scanQr(){
   renderPanel();
 }
 
+
+/* MONTREAL CORRIDORS */
+function clearCorridors(){
+  corridorLayers.forEach(l=>{try{map.removeLayer(l)}catch(e){}});
+  corridorLayers=[];
+  activeCorridorId='';
+  status('Corridors Montréal retirés de la carte.');
+  logAction('Corridors Montréal retirés');
+  renderPanel();
+}
+
+function drawCorridor(id){
+  const corridor=montrealRoadMemory.find(c=>c.id===id);
+  if(!corridor)return;
+
+  clearCorridors();
+  activeCorridorId=id;
+
+  map.setView(corridor.center,corridor.zoom||16);
+
+  const zone=L.circle(corridor.center,{
+    radius:720,
+    color:'#ff6600',
+    weight:3,
+    fillColor:'#ffd400',
+    fillOpacity:.10
+  }).addTo(map);
+  corridorLayers.push(zone);
+
+  corridor.paths.forEach(path=>{
+    const line=L.polyline(path.points,{
+      color:path.color||'#ff6600',
+      weight:7,
+      opacity:.92
+    }).addTo(map);
+
+    line.bindPopup('<b>'+esc(path.label)+'</b><br>Tracé corridor Montréal — base de travail POFINO.');
+    corridorLayers.push(line);
+
+    const mid=path.points[Math.floor(path.points.length/2)];
+    const marker=L.marker(mid,{
+      icon:L.divIcon({
+        className:'',
+        html:'<div class="mapLabel '+classByColor(path.color)+'">'+esc(path.label)+'</div>'
+      })
+    }).addTo(map);
+    corridorLayers.push(marker);
+  });
+
+  selectedStreet=corridor.name;
+  selectedLatLng=corridor.center;
+
+  status('Corridor chargé : '+corridor.name+'. Tracés intégrés comme base de travail.');
+  logAction('Corridor Montréal chargé : '+corridor.name);
+  openDrawer();
+  renderPanel();
+}
+
+function addCorridorToCurrentProject(){
+  const corridor=montrealRoadMemory.find(c=>c.id===activeCorridorId);
+  if(!corridor){status('Aucun corridor actif à intégrer au chantier.');return;}
+
+  corridor.paths.forEach(path=>{
+    currentRoutes.push({
+      points:path.points,
+      color:path.color||'#ff6600',
+      auto:false,
+      label:'Corridor Montréal — '+path.label
+    });
+  });
+
+  corridor.roads.forEach((road,i)=>{
+    if(i<8){
+      const base=corridor.center;
+      const lat=base[0]+(i%4)*0.00035;
+      const lng=base[1]+Math.floor(i/4)*0.00035;
+      currentSigns.push({lat,lng,label:'RUE: '+road,color:'#7b3ff2'});
+    }
+  });
+
+  status('Corridor intégré au chantier actif : routes + repères de rues ajoutés à la fiche.');
+  logAction('Corridor intégré au chantier : '+corridor.name);
+  renderPanel();
+}
+
+function renderCorridorsPanel(){
+  return `
+    <div class="card">
+      <h3>Corridors Montréal V7.1</h3>
+      <p class="small">Rues et chemins préintégrés à partir de tes captures. Ce sont des tracés de travail à valider sur le terrain, pas des plans officiels.</p>
+      ${montrealRoadMemory.map(c=>`
+        <button class="corridorBtn ${activeCorridorId===c.id?'yellowBtn':''}" onclick="drawCorridor('${c.id}')">
+          <b>${esc(c.name)}</b>
+          <small>${esc(c.description)}</small>
+        </button>
+      `).join('')}
+      <div class="grid2" style="margin-top:8px">
+        <button onclick="addCorridorToCurrentProject()">Intégrer au chantier</button>
+        <button class="darkBtn" onclick="clearCorridors()">Retirer tracés</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Rues répertoriées</h3>
+      ${montrealRoadMemory.map(c=>`
+        <h4>${esc(c.name)}</h4>
+        <p class="small">${esc(c.source)}</p>
+        <div>${c.roads.map(r=>`<span class="roadTag">${esc(r)}</span>`).join('')}</div>
+      `).join('')}
+    </div>
+  `;
+}
+
 /* PANEL RENDERERS */
 function showTab(tab,el){
   activeTab=tab;
@@ -776,7 +963,7 @@ function renderPanel(){
           <button class="layerBtn ${layerVisibility.signs?'active':''}" onclick="toggleLayer('signs')">Pancartes</button>
           <button class="layerBtn ${layerVisibility.routes?'active':''}" onclick="toggleLayer('routes')">Détours</button>
           <button class="layerBtn ${layerVisibility.zone?'active':''}" onclick="toggleLayer('zone')">Zone</button>
-          <button class="layerBtn" onclick="openDrawer()">Menu</button>
+          <button class="layerBtn" onclick="showTab('corridors',document.querySelector('[data-tab=corridors]'))">Corridors</button>
         </div>
       </div>
       <div class="card">
@@ -915,6 +1102,11 @@ function renderPanel(){
         <h3>Journal d’audit local</h3>
         ${auditLog.length?auditLog.slice(0,10).map(a=>`<div class="listItem"><b>${esc(a.action)}</b><small>${esc(a.time)} — ${esc(a.role)}</small></div>`).join(''):'<p class="small">Aucune action enregistrée.</p>'}
       </div>`;
+  }
+
+
+  if(activeTab==='corridors'){
+    c.innerHTML=renderCorridorsPanel();
   }
 
   if(activeTab==='data'){
@@ -1072,7 +1264,7 @@ function generatePdf(item){
   doc.setTextColor(20,20,20);
   doc.setFontSize(17);
   doc.setFont(undefined,'bold');
-  doc.text('POFINO V7 — Rapport pilote chantier',14,16);
+  doc.text('POFINO V7.1 — Rapport pilote chantier',14,16);
 
   doc.setTextColor(0,0,0);
   doc.setFontSize(10);
