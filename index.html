@@ -3,193 +3,1374 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>POFINO V6 — Signalisation Québec</title>
+<title>POFINO V6.1 — Propulsé par SignalIA</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
-body{overflow:hidden;background:#0b0b0b;color:white;}
+:root{
+  --bg:#080808;
+  --panel:#111;
+  --panel2:#1a1a1a;
+  --line:#333;
+  --orange:#ff6600;
+  --yellow:#ffd400;
+  --red:#d40000;
+  --green:#0a9b51;
+  --blue:#005cc8;
+  --purple:#7b3ff2;
+  --text:#fff;
+  --muted:#b9b9b9;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{overflow:hidden;background:var(--bg);color:var(--text);}
 #map{height:100vh;width:100vw;}
-.appTitle{position:absolute;top:12px;left:14px;z-index:9999;background:rgba(10,10,10,.95);border:2px solid #ff6600;border-radius:16px;padding:12px 16px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
-.appTitle b{color:#ff6600;font-size:20px;display:block}.appTitle span{font-size:12px;color:#bbb}
-.searchBar{position:absolute;top:14px;left:250px;right:380px;z-index:9999;display:flex;gap:8px;background:rgba(10,10,10,.95);padding:10px;border-radius:16px;border:1px solid #333}
-.searchBar input{flex:1;padding:13px;border-radius:12px;border:1px solid #555;background:white;color:#111;font-size:15px}.searchBar button,.actionBtn{padding:12px 14px;border:none;border-radius:12px;background:#ff6600;color:#111;font-weight:900;cursor:pointer}.quickRoads{position:absolute;top:88px;left:250px;right:380px;z-index:9998;display:flex;gap:7px;overflow-x:auto;padding:8px;background:rgba(10,10,10,.88);border-radius:14px;border:1px solid #333}.chip{white-space:nowrap;padding:9px 12px;background:#191919;border:1px solid #444;color:white;border-radius:999px;font-size:12px;font-weight:bold;cursor:pointer}.chip:hover{background:#ff6600;color:#111}.toolDock{position:absolute;left:14px;top:150px;z-index:9999;display:flex;flex-direction:column;gap:9px}.tool{width:58px;height:58px;border-radius:16px;border:1px solid #444;background:#161616;color:#fff;font-size:23px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.35)}.tool.active,.tool:hover{background:#ff6600;color:#111;border-color:#ff6600}.rightPanel{position:absolute;right:14px;top:14px;bottom:14px;width:350px;z-index:9999;background:rgba(12,12,12,.97);border:2px solid #ff6600;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 10px 35px rgba(0,0,0,.5);transition:.28s ease}.rightPanel.collapsed{transform:translateX(375px)}
-.panelToggle{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:10000;background:rgba(12,12,12,.96);color:white;border:2px solid #ff6600;border-radius:18px;padding:12px 18px;font-weight:900;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.45);display:flex;align-items:center;gap:18px;min-width:260px;justify-content:space-between;font-size:18px}.panelToggle.active{background:rgba(12,12,12,.96);color:white}.toggleWrap{display:flex;align-items:center;gap:10px}.toggleText{font-size:18px;font-weight:900}.toggleSwitch{width:64px;height:34px;background:#222;border-radius:30px;position:relative;border:1px solid #444;transition:.25s}.toggleCircle{width:28px;height:28px;background:white;border-radius:50%;position:absolute;top:2px;left:2px;transition:.25s}.panelToggle.active .toggleSwitch{background:#ff6600}.panelToggle.active .toggleCircle{left:32px}
-.tabs{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid #333}.tab{padding:12px 4px;background:#181818;color:#aaa;text-align:center;font-size:11px;font-weight:bold;cursor:pointer}.tab.active{background:#ff6600;color:#111}.panelContent{overflow:auto;padding:14px}.card{background:#1b1b1b;border:1px solid #333;border-radius:16px;padding:12px;margin-bottom:12px}.card h3{color:#ff6600;font-size:16px;margin-bottom:8px}.field{width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:1px solid #444;background:#242424;color:#fff}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.small{font-size:12px;color:#bbb;line-height:1.4}.inventoryItem{background:#222;border-left:5px solid #ff6600;border-radius:13px;padding:10px;margin-bottom:9px;cursor:pointer}.inventoryItem b{display:block;font-size:14px}.inventoryItem small{color:#bbb;line-height:1.4}.statusBar{position:absolute;bottom:14px;left:88px;right:380px;z-index:9999;background:rgba(12,12,12,.96);border:1px solid #ff6600;border-radius:16px;padding:12px;font-size:13px;color:#ddd}.sign-label{color:#111;padding:6px 10px;border-radius:9px;font-weight:900;border:2px solid white;box-shadow:0 0 10px rgba(0,0,0,.6)}.results{position:absolute;top:138px;left:250px;right:380px;z-index:10000;background:#111;border:1px solid #ff6600;border-radius:14px;overflow:hidden;display:none}.result{padding:12px;border-bottom:1px solid #333;cursor:pointer}.result:hover{background:#ff6600;color:#111}.badge{display:inline-block;padding:4px 7px;border-radius:8px;background:#333;color:#ddd;font-size:11px;margin:3px 2px}.live{background:#ff6600;color:#111}.done{background:#0a9b51;color:white}.closed{background:#b00000;color:white}.pdfBox{background:#111;border:1px dashed #ff6600;border-radius:16px;padding:14px;margin-top:10px}.calendarRow{display:grid;grid-template-columns:72px 1fr;gap:8px;border-bottom:1px solid #333;padding:8px 0}.calendarRow b{color:#ff6600}.roadRow{padding:9px;border-bottom:1px solid #333;cursor:pointer}.roadRow:hover{background:#ff6600;color:#111}.roadRow small{display:block;color:#aaa}.roadRow:hover small{color:#111}
-.signCategoryGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.signCat{background:#191919;border:1px solid #444;color:#fff;border-radius:12px;padding:10px;font-size:12px;font-weight:900;cursor:pointer}.signCat.active,.signCat:hover{background:#ff6600;color:#111;border-color:#ff6600}.signGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.signCard{background:#202020;border:1px solid #333;border-radius:14px;padding:10px;cursor:pointer;min-height:126px}.signCard:hover{border-color:#ff6600;background:#2a1600}.signIcon{height:50px;display:flex;align-items:center;justify-content:center;margin-bottom:7px}.signDiamond{width:38px;height:38px;background:#ffd400;border:3px solid #111;transform:rotate(45deg);display:flex;align-items:center;justify-content:center;color:#111;font-weight:900}.signDiamond span{transform:rotate(-45deg);font-size:18px}.signCircle{width:46px;height:46px;border-radius:50%;background:#fff;border:5px solid #d00000;color:#111;display:flex;align-items:center;justify-content:center;font-weight:900}.signBlue{background:#005cc8;border-color:#fff;color:#fff}.signRect{min-width:58px;min-height:38px;background:#ff6600;border:3px solid #111;color:#111;display:flex;align-items:center;justify-content:center;font-weight:900;text-align:center;font-size:10px;padding:3px}.signGreen{background:#008a43;color:#fff;border-color:#fff}.signName{font-size:13px;font-weight:900;color:#fff}.signDesc{font-size:11px;color:#bbb;margin-top:4px;line-height:1.25}.selectedSigns{background:#111;border:1px dashed #ff6600;border-radius:14px;padding:10px;margin-top:10px}.selectedSigns div{display:flex;justify-content:space-between;border-bottom:1px solid #333;padding:6px 0;font-size:12px}.selectedSigns button{background:#ff6600;color:#111;border:0;border-radius:7px;font-weight:900;padding:4px 7px;cursor:pointer}
-@media(max-width:900px){.appTitle{left:10px;top:10px}.panelToggle{left:50%;right:auto;top:auto;bottom:14px;transform:translateX(-50%);min-width:250px}.searchBar{top:120px;left:10px;right:10px}.quickRoads{top:190px;left:10px;right:10px}.toolDock{top:252px}.rightPanel{left:10px;right:10px;top:auto;height:44vh;width:auto}.statusBar{display:none}.results{left:10px;right:10px;top:244px}}
+
+/* HEADER */
+.appTitle{
+  position:absolute;
+  top:12px;
+  left:14px;
+  z-index:9999;
+  background:rgba(10,10,10,.96);
+  border:2px solid var(--orange);
+  border-radius:18px;
+  padding:12px 16px;
+  box-shadow:0 10px 32px rgba(0,0,0,.55);
+  min-width:220px;
+}
+.appTitle b{color:var(--orange);font-size:22px;display:block;letter-spacing:.5px;}
+.appTitle span{font-size:12px;color:var(--muted);display:block;margin-top:3px;}
+.appTitle small{font-size:11px;color:var(--yellow);display:block;margin-top:6px;font-weight:900;}
+
+/* SEARCH */
+.searchBar{
+  position:absolute;
+  top:14px;
+  left:260px;
+  right:390px;
+  z-index:9999;
+  display:flex;
+  gap:8px;
+  background:rgba(10,10,10,.95);
+  padding:10px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+}
+.searchBar input{
+  flex:1;
+  padding:13px;
+  border-radius:12px;
+  border:1px solid #555;
+  background:white;
+  color:#111;
+  font-size:15px;
+}
+button,.actionBtn{
+  padding:12px 14px;
+  border:none;
+  border-radius:12px;
+  background:var(--orange);
+  color:#111;
+  font-weight:900;
+  cursor:pointer;
+}
+button:hover,.actionBtn:hover{filter:brightness(1.08);}
+
+.quickRoads{
+  position:absolute;
+  top:88px;
+  left:260px;
+  right:390px;
+  z-index:9998;
+  display:flex;
+  gap:7px;
+  overflow-x:auto;
+  padding:8px;
+  background:rgba(10,10,10,.88);
+  border-radius:14px;
+  border:1px solid var(--line);
+}
+.chip{
+  white-space:nowrap;
+  padding:9px 12px;
+  background:#191919;
+  border:1px solid #444;
+  color:white;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.chip:hover{background:var(--orange);color:#111;}
+
+/* MAP TOOLS */
+.toolDock{
+  position:absolute;
+  left:14px;
+  top:160px;
+  z-index:9999;
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+}
+.tool{
+  width:58px;
+  height:58px;
+  border-radius:16px;
+  border:1px solid #444;
+  background:#161616;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer;
+  box-shadow:0 4px 18px rgba(0,0,0,.35);
+}
+.tool.active,.tool:hover{background:var(--orange);color:#111;border-color:var(--orange);}
+.tool small{font-size:9px;display:block;line-height:1}
+
+/* PANEL */
+.rightPanel{
+  position:absolute;
+  right:14px;
+  top:14px;
+  bottom:14px;
+  width:360px;
+  z-index:9999;
+  background:rgba(12,12,12,.98);
+  border:2px solid var(--orange);
+  border-radius:20px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 10px 35px rgba(0,0,0,.55);
+  transition:.28s ease;
+}
+.rightPanel.collapsed{transform:translateX(390px);}
+
+.panelToggle{
+  position:absolute;
+  left:50%;
+  bottom:16px;
+  transform:translateX(-50%);
+  z-index:10000;
+  background:rgba(12,12,12,.96);
+  color:white;
+  border:2px solid var(--orange);
+  border-radius:18px;
+  padding:12px 18px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+  display:flex;
+  align-items:center;
+  gap:18px;
+  min-width:260px;
+  justify-content:space-between;
+  font-size:16px;
+}
+.toggleWrap{display:flex;align-items:center;gap:10px}
+.toggleText{font-size:15px;font-weight:900;color:var(--yellow)}
+.toggleSwitch{width:58px;height:30px;background:#222;border-radius:30px;position:relative;border:1px solid #444;transition:.25s}
+.toggleCircle{width:24px;height:24px;background:white;border-radius:50%;position:absolute;top:2px;left:2px;transition:.25s}
+.panelToggle.active .toggleSwitch{background:var(--orange)}
+.panelToggle.active .toggleCircle{left:30px}
+
+.tabs{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  border-bottom:1px solid var(--line);
+}
+.tab{
+  padding:11px 3px;
+  background:#181818;
+  color:#aaa;
+  text-align:center;
+  font-size:10px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.tab.active{background:var(--orange);color:#111;}
+
+.panelContent{overflow:auto;padding:14px;}
+.card{
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  margin-bottom:12px;
+}
+.card h3{color:var(--orange);font-size:16px;margin-bottom:8px;}
+.card h4{color:var(--yellow);font-size:13px;margin:8px 0 5px;}
+.small{font-size:12px;color:var(--muted);line-height:1.45;}
+.field{
+  width:100%;
+  padding:10px;
+  margin-bottom:8px;
+  border-radius:10px;
+  border:1px solid #444;
+  background:#242424;
+  color:#fff;
+}
+textarea.field{resize:vertical;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;}
+
+.badge{
+  display:inline-block;
+  padding:4px 7px;
+  border-radius:8px;
+  background:#333;
+  color:#ddd;
+  font-size:11px;
+  margin:3px 2px;
+  font-weight:900;
+}
+.live{background:var(--orange);color:#111;}
+.done{background:var(--green);color:white;}
+.closed{background:var(--red);color:white;}
+.purple{background:var(--purple);color:white;}
+.yellow{background:var(--yellow);color:#111;}
+
+.statusBar{
+  position:absolute;
+  bottom:14px;
+  left:88px;
+  right:390px;
+  z-index:9999;
+  background:rgba(12,12,12,.96);
+  border:1px solid var(--orange);
+  border-radius:16px;
+  padding:12px;
+  font-size:13px;
+  color:#ddd;
+}
+
+.results{
+  position:absolute;
+  top:138px;
+  left:260px;
+  right:390px;
+  z-index:10000;
+  background:#111;
+  border:1px solid var(--orange);
+  border-radius:14px;
+  overflow:hidden;
+  display:none;
+}
+.result{
+  padding:12px;
+  border-bottom:1px solid #333;
+  cursor:pointer;
+  color:white;
+}
+.result:hover{background:var(--orange);color:#111}
+
+/* SIGNS */
+.sign-label{
+  color:#111;
+  padding:6px 10px;
+  border-radius:9px;
+  font-weight:900;
+  border:2px solid white;
+  box-shadow:0 0 10px rgba(0,0,0,.65);
+  font-size:12px;
+  white-space:nowrap;
+}
+.signCategoryGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.signCat{
+  background:#191919;
+  border:1px solid #444;
+  color:#fff;
+  border-radius:12px;
+  padding:10px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.signCat.active,.signCat:hover{background:var(--orange);color:#111;border-color:var(--orange)}
+.signGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.signCard{
+  background:#202020;
+  border:1px solid #333;
+  border-radius:14px;
+  padding:10px;
+  cursor:pointer;
+  min-height:128px;
+}
+.signCard:hover{border-color:var(--orange);background:#2a1600}
+.signIcon{height:50px;display:flex;align-items:center;justify-content:center;margin-bottom:7px}
+.signDiamond{
+  width:38px;height:38px;background:#ffd400;border:3px solid #111;transform:rotate(45deg);
+  display:flex;align-items:center;justify-content:center;color:#111;font-weight:900;
+}
+.signDiamond span{transform:rotate(-45deg);font-size:17px}
+.signCircle{
+  width:46px;height:46px;border-radius:50%;background:#fff;border:5px solid var(--red);
+  color:#111;display:flex;align-items:center;justify-content:center;font-weight:900;
+}
+.signBlue{background:var(--blue);border-color:#fff;color:#fff}
+.signRect{
+  min-width:58px;min-height:38px;background:var(--orange);border:3px solid #111;color:#111;
+  display:flex;align-items:center;justify-content:center;font-weight:900;text-align:center;font-size:10px;padding:3px;
+}
+.signGreen{background:#008a43;color:#fff;border-color:#fff}
+.signName{font-size:13px;font-weight:900;color:#fff}
+.signDesc{font-size:11px;color:#bbb;margin-top:4px;line-height:1.25}
+.selectedSigns{
+  background:#111;
+  border:1px dashed var(--orange);
+  border-radius:14px;
+  padding:10px;
+  margin-top:10px;
+}
+.selectedSigns div{
+  display:flex;
+  justify-content:space-between;
+  border-bottom:1px solid #333;
+  padding:6px 0;
+  font-size:12px;
+}
+.selectedSigns button{
+  background:var(--orange);
+  color:#111;
+  border:0;
+  border-radius:7px;
+  font-weight:900;
+  padding:4px 7px;
+  cursor:pointer;
+}
+
+/* LISTS */
+.inventoryItem{
+  background:#222;
+  border-left:5px solid var(--orange);
+  border-radius:13px;
+  padding:10px;
+  margin-bottom:9px;
+  cursor:pointer;
+}
+.inventoryItem:hover{background:#2a2a2a}
+.inventoryItem b{display:block;font-size:14px}
+.inventoryItem small{color:#bbb;line-height:1.4}
+.roadRow{padding:9px;border-bottom:1px solid #333;cursor:pointer}
+.roadRow:hover{background:var(--orange);color:#111}
+.roadRow small{display:block;color:#aaa}
+.roadRow:hover small{color:#111}
+
+.pdfBox{
+  background:#111;
+  border:1px dashed var(--orange);
+  border-radius:16px;
+  padding:14px;
+  margin-top:10px;
+}
+.calendarRow{display:grid;grid-template-columns:78px 1fr;gap:8px;border-bottom:1px solid #333;padding:8px 0}
+.calendarRow b{color:var(--orange)}
+
+.scoreBox{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.score{
+  background:#111;
+  border:1px solid #333;
+  border-radius:14px;
+  padding:10px;
+}
+.score b{display:block;color:var(--yellow);font-size:18px;}
+.score span{font-size:11px;color:#bbb;}
+
+.warning{
+  border-left:5px solid var(--yellow);
+  background:#171300;
+  padding:10px;
+  border-radius:12px;
+  color:#eee;
+  font-size:12px;
+  line-height:1.4;
+}
+
+.validationRow{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  align-items:center;
+  border-bottom:1px solid #333;
+  padding:8px 0;
+  font-size:12px;
+}
+.validationRow button{padding:7px 9px;border-radius:9px;font-size:11px;}
+
+@media(max-width:900px){
+  .appTitle{left:10px;top:10px;min-width:190px}
+  .searchBar{top:120px;left:10px;right:10px}
+  .quickRoads{top:190px;left:10px;right:10px}
+  .toolDock{top:252px}
+  .rightPanel{left:10px;right:10px;top:auto;height:46vh;width:auto}
+  .rightPanel.collapsed{transform:translateY(calc(100% + 30px))}
+  .statusBar{display:none}
+  .results{left:10px;right:10px;top:244px}
+  .panelToggle{bottom:14px;min-width:250px}
+}
 </style>
 </head>
+
 <body>
 <div id="map"></div>
-<div class="appTitle"><b>POFINO V6</b><span>Détour automatique + signalisation Québec</span></div>
-<div class="searchBar"><input id="streetSearch" placeholder="Rechercher rue / boulevard / autoroute au Québec…" onkeydown="if(event.key==='Enter') searchStreet()"><button onclick="searchStreet()">Rechercher</button></div>
+
+<div class="appTitle">
+  <b>POFINO V6.1</b>
+  <span>Plateforme chantier + inventaire</span>
+  <small>Propulsé par SignalIA</small>
+</div>
+
+<div class="searchBar">
+  <input id="streetSearch" placeholder="Rechercher rue / boulevard / autoroute au Québec…" onkeydown="if(event.key==='Enter') searchStreet()">
+  <button onclick="searchStreet()">Rechercher</button>
+</div>
+
 <div class="quickRoads" id="quickRoads"></div>
 <div id="results" class="results"></div>
-<div class="toolDock"><button class="tool" id="moveBtn" onclick="setMode('move')">✋</button><button class="tool" id="workBtn" onclick="setMode('work')">🚧</button><button class="tool" id="detourBtn" onclick="setMode('detour')">↪</button><button class="tool" id="closedBtn" onclick="setMode('closed')">⛔</button><button class="tool" id="routeBtn" onclick="setMode('route')">〰</button><button class="tool" onclick="clearMap()">🗑</button></div>
+
+<div class="toolDock">
+  <button class="tool" id="moveBtn" onclick="setMode('move')" title="Déplacement">✋<small>MOVE</small></button>
+  <button class="tool" id="workBtn" onclick="setMode('work')" title="Travaux">🚧<small>TRAV</small></button>
+  <button class="tool" id="detourBtn" onclick="setMode('detour')" title="Détour">↪<small>DETOUR</small></button>
+  <button class="tool" id="closedBtn" onclick="setMode('closed')" title="Rue fermée + suggestion IA">⛔<small>IA</small></button>
+  <button class="tool" id="routeBtn" onclick="setMode('route')" title="Tracer détour manuel">〰<small>TRACE</small></button>
+  <button class="tool" onclick="clearMap()" title="Nettoyer la carte">🗑<small>CLEAR</small></button>
+</div>
+
 <button class="panelToggle active" onclick="togglePanel()" id="panelToggle">MENU</button>
-<div class="rightPanel" id="rightPanel"><div class="tabs"><div class="tab active" onclick="showTab('chantier',this)">CHANTIER</div><div class="tab" onclick="showTab('signal',this)">SIGNAL</div><div class="tab" onclick="showTab('inventaire',this)">INVENT.</div><div class="tab" onclick="showTab('agenda',this)">AGENDA</div><div class="tab" onclick="showTab('repertoire',this)">RUES</div><div class="tab" onclick="showTab('pdf',this)">PDF</div></div><div class="panelContent" id="panelContent"></div></div>
-<div class="statusBar" id="status">V6 prête. Utilise une rue prioritaire, crée un chantier, ajoute la signalisation.</div>
+
+<div class="rightPanel" id="rightPanel">
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('chantier',this)">CHANT.</div>
+    <div class="tab" onclick="showTab('signal',this)">SIGNAL</div>
+    <div class="tab" onclick="showTab('ia',this)">IA</div>
+    <div class="tab" onclick="showTab('inventaire',this)">INVENT.</div>
+    <div class="tab" onclick="showTab('terrain',this)">TERRAIN</div>
+    <div class="tab" onclick="showTab('agenda',this)">AGENDA</div>
+    <div class="tab" onclick="showTab('pdf',this)">PDF</div>
+  </div>
+  <div class="panelContent" id="panelContent"></div>
+</div>
+
+<div class="statusBar" id="status">V6.1 prête. Crée un chantier, ajoute la signalisation, puis génère une fiche PDF professionnelle.</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script>
-const map=L.map('map').setView([46.55,-72.85],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'© OpenStreetMap'}).addTo(map);
 
-const signalCategories=['Tous','Danger','Obligation','Interdiction','Direction','Chantier'];
+<script>
+/* =========================================================
+   POFINO V6.1 — PROTOTYPE LOCAL
+   POFINO = plateforme chantier / carte / inventaire / PDF
+   SignalIA = moteur intelligent de recommandation
+   ========================================================= */
+
+const map=L.map('map').setView([46.55,-72.85],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:20,
+  attribution:'© OpenStreetMap'
+}).addTo(map);
+
+/* DATA */
+const signalCategories=['Tous','Danger','Obligation','Interdiction','Direction','Chantier','Piéton'];
 let activeSignalCat='Tous';
+
 const quebecSigns=[
-{cat:'Danger',name:'Travaux',desc:'Annonce une zone de travaux.',icon:'🚧',type:'diamond',label:'TRAVAUX',color:'#ff6600'},
-{cat:'Danger',name:'Homme au travail',desc:'Présence de travailleurs.',icon:'👷',type:'diamond',label:'TRAVAILLEURS',color:'#ff6600'},
-{cat:'Danger',name:'Chaussée rétrécie',desc:'Réduction de largeur de voie.',icon:'↔',type:'diamond',label:'RÉTRÉCI',color:'#ff6600'},
-{cat:'Danger',name:'Voie fermée à droite',desc:'Fermeture voie droite.',icon:'→|',type:'diamond',label:'VOIE DROITE FERMÉE',color:'#ff6600'},
-{cat:'Danger',name:'Circulation alternée',desc:'Circulation dans une seule voie.',icon:'⇄',type:'diamond',label:'ALTERNÉE',color:'#ff6600'},
-{cat:'Obligation',name:'Garder la droite',desc:'Passage obligatoire à droite.',icon:'➡',type:'blue',label:'DROITE',color:'#005cc8'},
-{cat:'Obligation',name:'Garder la gauche',desc:'Passage obligatoire à gauche.',icon:'⬅',type:'blue',label:'GAUCHE',color:'#005cc8'},
-{cat:'Obligation',name:'Direction obligatoire',desc:'Trajet imposé.',icon:'↗',type:'blue',label:'DIRECTION',color:'#005cc8'},
-{cat:'Obligation',name:'Tourner à droite',desc:'Virage obligatoire.',icon:'↪',type:'blue',label:'TOURNER DROITE',color:'#005cc8'},
-{cat:'Obligation',name:'EPI chantier',desc:'Protection obligatoire en zone.',icon:'⛑',type:'blue',label:'EPI',color:'#005cc8'},
-{cat:'Interdiction',name:'Route barrée',desc:'Aucun passage autorisé.',icon:'⛔',type:'circle',label:'ROUTE BARRÉE',color:'#d00000'},
-{cat:'Interdiction',name:'Sens interdit',desc:'Accès interdit dans ce sens.',icon:'-',type:'circle',label:'SENS INTERDIT',color:'#d00000'},
-{cat:'Interdiction',name:'Stationnement interdit',desc:'Stationnement interdit temporaire.',icon:'P',type:'circle',label:'NO PARKING',color:'#d00000'},
-{cat:'Interdiction',name:'Limite 30',desc:'Vitesse maximale temporaire.',icon:'30',type:'circle',label:'MAX 30',color:'#d00000'},
-{cat:'Interdiction',name:'Limite 50',desc:'Vitesse maximale temporaire.',icon:'50',type:'circle',label:'MAX 50',color:'#d00000'},
-{cat:'Direction',name:'Détour',desc:'Déviation principale.',icon:'DÉTOUR',type:'rect',label:'DÉTOUR',color:'#ffd400'},
-{cat:'Direction',name:'Détour droite',desc:'Suivre détour à droite.',icon:'DÉTOUR →',type:'rect',label:'DÉTOUR →',color:'#ffd400'},
-{cat:'Direction',name:'Détour gauche',desc:'Suivre détour à gauche.',icon:'← DÉTOUR',type:'rect',label:'← DÉTOUR',color:'#ffd400'},
-{cat:'Direction',name:'Accès local seulement',desc:'Résidents et commerces.',icon:'LOCAL',type:'green',label:'ACCÈS LOCAL',color:'#008a43'},
-{cat:'Direction',name:'Fin détour',desc:'Retour au trajet normal.',icon:'FIN',type:'green',label:'FIN DÉTOUR',color:'#008a43'},
-{cat:'Chantier',name:'Cônes',desc:'Délimitation terrain.',icon:'🔶',type:'rect',label:'CÔNES',color:'#ff6600'},
-{cat:'Chantier',name:'Barrière',desc:'Blocage physique.',icon:'▥',type:'rect',label:'BARRIÈRE',color:'#ff6600'},
-{cat:'Chantier',name:'Signaleur',desc:'Contrôle manuel de circulation.',icon:'🧍',type:'rect',label:'SIGNALEUR',color:'#ff6600'},
-{cat:'Chantier',name:'Flèche lumineuse',desc:'Remorque de direction.',icon:'➜➜',type:'rect',label:'FLÈCHE',color:'#ff6600'},
-{cat:'Chantier',name:'Fin des travaux',desc:'Sortie de zone chantier.',icon:'FIN TRAVAUX',type:'rect',label:'FIN TRAVAUX',color:'#ff6600'}
+  {cat:'Danger',name:'Travaux',desc:'Annonce une zone de travaux.',icon:'🚧',type:'diamond',label:'TRAVAUX',color:'#ff6600'},
+  {cat:'Danger',name:'Homme au travail',desc:'Présence de travailleurs.',icon:'👷',type:'diamond',label:'TRAVAILLEURS',color:'#ff6600'},
+  {cat:'Danger',name:'Chaussée rétrécie',desc:'Réduction de largeur de voie.',icon:'↔',type:'diamond',label:'RÉTRÉCI',color:'#ff6600'},
+  {cat:'Danger',name:'Voie fermée à droite',desc:'Fermeture voie droite.',icon:'→|',type:'diamond',label:'VOIE DROITE FERMÉE',color:'#ff6600'},
+  {cat:'Danger',name:'Voie fermée à gauche',desc:'Fermeture voie gauche.',icon:'|←',type:'diamond',label:'VOIE GAUCHE FERMÉE',color:'#ff6600'},
+  {cat:'Danger',name:'Circulation alternée',desc:'Circulation dans une seule voie.',icon:'⇄',type:'diamond',label:'ALTERNÉE',color:'#ff6600'},
+
+  {cat:'Obligation',name:'Garder la droite',desc:'Passage obligatoire à droite.',icon:'➡',type:'blue',label:'GARDER DROITE',color:'#005cc8'},
+  {cat:'Obligation',name:'Garder la gauche',desc:'Passage obligatoire à gauche.',icon:'⬅',type:'blue',label:'GARDER GAUCHE',color:'#005cc8'},
+  {cat:'Obligation',name:'Direction obligatoire',desc:'Trajet imposé.',icon:'↗',type:'blue',label:'DIRECTION',color:'#005cc8'},
+  {cat:'Obligation',name:'Tourner à droite',desc:'Virage obligatoire.',icon:'↪',type:'blue',label:'TOURNER DROITE',color:'#005cc8'},
+
+  {cat:'Interdiction',name:'Route barrée',desc:'Aucun passage autorisé.',icon:'⛔',type:'circle',label:'ROUTE BARRÉE',color:'#d40000'},
+  {cat:'Interdiction',name:'Sens interdit',desc:'Accès interdit dans ce sens.',icon:'-',type:'circle',label:'SENS INTERDIT',color:'#d40000'},
+  {cat:'Interdiction',name:'Stationnement interdit',desc:'Stationnement interdit temporaire.',icon:'P',type:'circle',label:'NO PARKING',color:'#d40000'},
+  {cat:'Interdiction',name:'Limite 30',desc:'Vitesse maximale temporaire.',icon:'30',type:'circle',label:'MAX 30',color:'#d40000'},
+  {cat:'Interdiction',name:'Limite 50',desc:'Vitesse maximale temporaire.',icon:'50',type:'circle',label:'MAX 50',color:'#d40000'},
+
+  {cat:'Direction',name:'Détour',desc:'Déviation principale.',icon:'DÉTOUR',type:'rectYellow',label:'DÉTOUR',color:'#ffd400'},
+  {cat:'Direction',name:'Détour droite',desc:'Suivre détour à droite.',icon:'DÉTOUR →',type:'rectYellow',label:'DÉTOUR →',color:'#ffd400'},
+  {cat:'Direction',name:'Détour gauche',desc:'Suivre détour à gauche.',icon:'← DÉTOUR',type:'rectYellow',label:'← DÉTOUR',color:'#ffd400'},
+  {cat:'Direction',name:'Accès local seulement',desc:'Résidents et commerces.',icon:'LOCAL',type:'green',label:'ACCÈS LOCAL',color:'#008a43'},
+  {cat:'Direction',name:'Fin détour',desc:'Retour au trajet normal.',icon:'FIN',type:'green',label:'FIN DÉTOUR',color:'#008a43'},
+
+  {cat:'Chantier',name:'Cônes',desc:'Délimitation terrain.',icon:'🔶',type:'rect',label:'CÔNES',color:'#ff6600'},
+  {cat:'Chantier',name:'Barils',desc:'Délimitation sécurisée.',icon:'🟠',type:'rect',label:'BARILS',color:'#ff6600'},
+  {cat:'Chantier',name:'Barrière',desc:'Blocage physique.',icon:'▥',type:'rect',label:'BARRIÈRE',color:'#ff6600'},
+  {cat:'Chantier',name:'Jersey',desc:'Protection physique lourde.',icon:'▰',type:'rect',label:'JERSEY',color:'#ff6600'},
+  {cat:'Chantier',name:'Signaleur',desc:'Contrôle manuel de circulation.',icon:'🧍',type:'rect',label:'SIGNALEUR',color:'#ff6600'},
+  {cat:'Chantier',name:'Flèche lumineuse',desc:'Remorque de direction.',icon:'➜➜',type:'rect',label:'FLÈCHE',color:'#ff6600'},
+  {cat:'Chantier',name:'Cache-panneau',desc:'Panneau existant masqué.',icon:'X',type:'rect',label:'CACHE-PANNEAU',color:'#ff6600'},
+  {cat:'Chantier',name:'Fin des travaux',desc:'Sortie de zone chantier.',icon:'FIN',type:'rect',label:'FIN TRAVAUX',color:'#ff6600'},
+
+  {cat:'Piéton',name:'Détour piéton',desc:'Chemin alternatif piétons.',icon:'🚶↪',type:'green',label:'DÉTOUR PIÉTON',color:'#008a43'},
+  {cat:'Piéton',name:'Passage sécurisé',desc:'Traversée temporaire.',icon:'🚶',type:'green',label:'PASSAGE PIÉTON',color:'#008a43'},
+  {cat:'Piéton',name:'Barrière piétonne',desc:'Protection zone piétonne.',icon:'▥',type:'green',label:'BARRIÈRE PIÉTON',color:'#008a43'}
 ];
-function signVisual(s){if(s.type==='diamond')return `<div class="signDiamond"><span>${s.icon}</span></div>`; if(s.type==='circle')return `<div class="signCircle">${s.icon}</div>`; if(s.type==='blue')return `<div class="signCircle signBlue">${s.icon}</div>`; if(s.type==='green')return `<div class="signRect signGreen">${s.icon}</div>`; return `<div class="signRect">${s.icon}</div>`;}
-function setSignalCat(c){activeSignalCat=c;renderPanel();}
-function renderSignalisationHtml(){const cats=signalCategories.map(c=>`<button class="signCat ${activeSignalCat===c?'active':''}" onclick="setSignalCat('${c}')">${c}</button>`).join('');const list=quebecSigns.filter(s=>activeSignalCat==='Tous'||s.cat===activeSignalCat);const grid=list.map(s=>`<div class="signCard" onclick="addQuebecSign('${s.name}')"><div class="signIcon">${signVisual(s)}</div><div class="signName">${s.name}</div><div class="signDesc">${s.cat}<br>${s.desc}</div></div>`).join('');return `<div class="card"><h3>Signalisation Québec — 25 panneaux principaux</h3><p class="small">Clique une catégorie, puis clique un panneau pour l’ajouter au chantier et à la carte.</p><div class="signCategoryGrid">${cats}</div><div class="signGrid">${grid}</div></div><div class="card"><h3>Panneaux sélectionnés</h3>${renderSelectedSigns()}</div>`;}
-function renderSelectedSigns(){if(!currentSigns.length)return '<p class="small">Aucun panneau ajouté au chantier.</p>';let counts={};currentSigns.forEach(s=>{counts[s.label]=(counts[s.label]||0)+1});return '<div class="selectedSigns">'+Object.keys(counts).map(k=>`<div><span>${k}</span><span>x${counts[k]} <button onclick="removeOneSign('${k}')">−</button></span></div>`).join('')+'</div>';}
-function addQuebecSign(name){const s=quebecSigns.find(x=>x.name===name);if(!s)return;let base=selectedLatLng?{lat:selectedLatLng[0],lng:selectedLatLng[1]}:map.getCenter();let offset=(currentSigns.length%8)*0.00035;let latlng={lat:base.lat+offset,lng:base.lng+offset};makeMarker(latlng,s.label,s.color,true);status('Panneau ajouté: '+s.name);renderPanel();}
-function removeOneSign(label){const idx=currentSigns.findIndex(s=>s.label===label);if(idx>=0){currentSigns.splice(idx,1);status('Panneau retiré: '+label);renderPanel();}}
+
 const priorityRoads=[
-{name:'Avenue du Parc',city:'Montréal',lat:45.5208,lng:-73.5912,type:'artère urbaine'},
-{name:'Rue Ontario',city:'Montréal',lat:45.5325,lng:-73.5527,type:'artère urbaine'},
-{name:'Boulevard Saint-Laurent',city:'Montréal',lat:45.5187,lng:-73.5867,type:'artère majeure'},
-{name:'Rue Sherbrooke',city:'Montréal',lat:45.5174,lng:-73.5747,type:'artère majeure'},
-{name:'Boulevard René-Lévesque',city:'Montréal',lat:45.5017,lng:-73.5685,type:'centre-ville'},
-{name:'Autoroute 40',city:'Québec / Montréal',lat:45.5711,lng:-73.7089,type:'autoroute'},
-{name:'Autoroute 15',city:'Montréal / Laval',lat:45.5461,lng:-73.7286,type:'autoroute'},
-{name:'Autoroute 20',city:'Rive-Sud / Québec',lat:45.4298,lng:-73.4592,type:'autoroute'},
-{name:'Boulevard Pie-IX',city:'Montréal',lat:45.5542,lng:-73.5519,type:'artère majeure'},
-{name:'Boulevard Décarie',city:'Montréal',lat:45.4822,lng:-73.6309,type:'axe majeur'},
-{name:'Boulevard Taschereau',city:'Longueuil / Brossard',lat:45.4761,lng:-73.4714,type:'axe Rive-Sud'},
-{name:'Boulevard des Laurentides',city:'Laval',lat:45.5853,lng:-73.7201,type:'axe Laval'},
-{name:'Boulevard Charest',city:'Québec',lat:46.8124,lng:-71.2273,type:'artère Québec'},
-{name:'Boulevard Laurier',city:'Québec',lat:46.7691,lng:-71.2861,type:'artère Québec'},
-{name:'Autoroute 440',city:'Laval',lat:45.5805,lng:-73.7562,type:'autoroute'},
-{name:'Autoroute 640',city:'Rive-Nord',lat:45.7069,lng:-73.8822,type:'autoroute'}
+  {name:'Avenue du Parc',city:'Montréal',lat:45.5208,lng:-73.5912,type:'artère urbaine'},
+  {name:'Rue Ontario',city:'Montréal',lat:45.5325,lng:-73.5527,type:'artère urbaine'},
+  {name:'Boulevard Saint-Laurent',city:'Montréal',lat:45.5187,lng:-73.5867,type:'artère majeure'},
+  {name:'Rue Sherbrooke',city:'Montréal',lat:45.5174,lng:-73.5747,type:'artère majeure'},
+  {name:'Boulevard René-Lévesque',city:'Montréal',lat:45.5017,lng:-73.5685,type:'centre-ville'},
+  {name:'Autoroute 40',city:'Québec / Montréal',lat:45.5711,lng:-73.7089,type:'autoroute'},
+  {name:'Autoroute 15',city:'Montréal / Laval',lat:45.5461,lng:-73.7286,type:'autoroute'},
+  {name:'Autoroute 20',city:'Rive-Sud / Québec',lat:45.4298,lng:-73.4592,type:'autoroute'},
+  {name:'Boulevard Pie-IX',city:'Montréal',lat:45.5542,lng:-73.5519,type:'artère majeure'},
+  {name:'Boulevard Décarie',city:'Montréal',lat:45.4822,lng:-73.6309,type:'axe majeur'},
+  {name:'Boulevard Taschereau',city:'Longueuil / Brossard',lat:45.4761,lng:-73.4714,type:'axe Rive-Sud'},
+  {name:'Boulevard des Laurentides',city:'Laval',lat:45.5853,lng:-73.7201,type:'axe Laval'},
+  {name:'Boulevard Charest',city:'Québec',lat:46.8124,lng:-71.2273,type:'artère Québec'},
+  {name:'Boulevard Laurier',city:'Québec',lat:46.7691,lng:-71.2861,type:'artère Québec'},
+  {name:'Autoroute 440',city:'Laval',lat:45.5805,lng:-73.7562,type:'autoroute'},
+  {name:'Autoroute 640',city:'Rive-Nord',lat:45.7069,lng:-73.8822,type:'autoroute'}
 ];
-let mode='move',selectedStreet='',selectedLatLng=null,selectedStreetLayer=null,panelCollapsed=false,layers=[],routePoints=[],routeLine=null,activeTab='chantier';
+
+/* STATE */
+let mode='move';
+let selectedStreet='';
+let selectedLatLng=null;
+let selectedStreetLayer=null;
+let panelCollapsed=false;
+let layers=[];
+let routePoints=[];
+let routeLine=null;
+let activeTab='chantier';
 let currentSigns=[];
 let currentRoutes=[];
-let inventory=JSON.parse(localStorage.getItem('pofinoInventoryV4')||localStorage.getItem('pofinoInventoryV3')||'[]');
-let pdfLibrary=JSON.parse(localStorage.getItem('pofinoPdfLibraryV4')||'[]');
+let currentValidations=[];
+
+let inventory=JSON.parse(localStorage.getItem('pofinoInventoryV61')||'[]');
+let pdfLibrary=JSON.parse(localStorage.getItem('pofinoPdfLibraryV61')||'[]');
+
 const today=new Date().toISOString().slice(0,10);
+
+/* UTILITIES */
 function status(t){document.getElementById('status').innerText=t;}
-function setPanel(collapsed){panelCollapsed=collapsed;document.getElementById('rightPanel').classList.toggle('collapsed',collapsed);const btn=document.getElementById('panelToggle');btn.classList.toggle('active',!collapsed);btn.innerHTML=`<span>MENU</span><div class="toggleWrap"><span class="toggleText">${collapsed?'OFF':'ON'}</span><div class="toggleSwitch"><div class="toggleCircle"></div></div></div>`;}
-function togglePanel(){setPanel(!panelCollapsed);}function collapseForMap(){setPanel(true);}function openForForm(){setPanel(false);}function setMode(m){mode=m;document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));let id={move:'moveBtn',work:'workBtn',detour:'detourBtn',closed:'closedBtn',route:'routeBtn'}[m];if(id)document.getElementById(id).classList.add('active');status({move:'Mode déplacement.',work:'Clique pour placer TRAVAUX.',detour:'Clique pour placer DÉTOUR.',closed:'Clique pour placer RUE FERMÉE.',route:'Clique plusieurs points pour tracer un détour.'}[m]);collapseForMap();}
-function renderQuickRoads(){document.getElementById('quickRoads').innerHTML=priorityRoads.slice(0,12).map((r,i)=>`<button class="chip" onclick="selectPriority(${i})">${r.name}</button>`).join('');}
-function selectPriority(i){const r=priorityRoads[i];selectedStreet=r.name;selectedLatLng=[r.lat,r.lng];document.getElementById('streetSearch').value=r.name;highlightPoint(r.lat,r.lng,r.name);status(`${r.name} sélectionné — ${r.city}.`);renderPanel();openForForm();}
-function highlightPoint(lat,lng,label){if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);selectedStreetLayer=L.circle([lat,lng],{radius:450,color:'#ff6600',weight:4,fillColor:'#ffd400',fillOpacity:.25}).addTo(map);map.setView([lat,lng],16);let m=L.marker([lat,lng]).addTo(map).bindPopup(`<b>${label}</b><br>Rue prioritaire sélectionnée`).openPopup();layers.push(m);}
-async function searchStreet(){const q=document.getElementById('streetSearch').value.trim();if(!q){status('Écris une rue à rechercher.');return;}let local=priorityRoads.filter(r=>(r.name+' '+r.city).toLowerCase().includes(q.toLowerCase()));if(local.length){showLocalResults(local);return;}status('Recherche OpenStreetMap Québec...');const url=`https://nominatim.openstreetmap.org/search?format=json&limit=8&q=${encodeURIComponent(q+', Québec, Canada')}&addressdetails=1&polygon_geojson=1`;try{const res=await fetch(url,{headers:{Accept:'application/json'}});const data=await res.json();showResults(data,q);}catch(e){status('Recherche non disponible ici. Les rues prioritaires fonctionnent hors ligne.');}}
-function showLocalResults(data){const box=document.getElementById('results');box.innerHTML=data.map((r)=>`<div class="result" onclick="selectPriority(${priorityRoads.indexOf(r)})"><b>${r.name}</b><br><small>${r.city} — ${r.type}</small></div>`).join('');box.style.display='block';}
-function showResults(data,q){const box=document.getElementById('results');box.innerHTML='';if(!data.length){box.style.display='block';box.innerHTML='<div class="result">Aucun résultat. Essaie une rue majeure ou ajoute-la manuellement au chantier.</div>';return;}data.forEach(r=>{let d=document.createElement('div');d.className='result';d.innerHTML=r.display_name;d.onclick=()=>selectStreet(r,q);box.appendChild(d);});box.style.display='block';}
-function selectStreet(r,q){document.getElementById('results').style.display='none';selectedStreet=q;selectedLatLng=[+r.lat,+r.lon];if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);if(r.geojson){selectedStreetLayer=L.geoJSON(r.geojson,{style:{color:'#ff6600',weight:8,opacity:.95,fillColor:'#ffd400',fillOpacity:.18}}).addTo(map);map.fitBounds(selectedStreetLayer.getBounds(),{padding:[70,70],maxZoom:18});}else{highlightPoint(+r.lat,+r.lon,q);}let m=L.marker(selectedLatLng).addTo(map).bindPopup(`<b>${q}</b><br>Sélection Québec`).openPopup();layers.push(m);status('Rue trouvée et surlignée.');renderPanel();openForForm();}
-function showTab(tab,el){activeTab=tab;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(el)el.classList.add('active');renderPanel();}
-function generateReference(){const d=new Date();const y=String(d.getFullYear()).slice(2);const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');const n=String(inventory.length+1).padStart(4,'0');return `POF-${y}${m}${day}-${n}`;}
-function renderPanel(){const p=document.getElementById('panelContent');if(activeTab==='chantier'){p.innerHTML=`<div class="card"><h3>Fiche chantier actif</h3><input class="field" id="fRef" placeholder="Référence" value="${generateReference()}" readonly><input class="field" id="fStreet" placeholder="Rue" value="${selectedStreet}"><div class="grid2"><input class="field" id="fDate" type="date" value="${today}"><input class="field" id="fTime" type="time" value="08:00"></div><select class="field" id="fType"><option>Travaux</option><option>Détour</option><option>Rue fermée</option><option>Entrave partielle</option><option>Signalisation temporaire</option></select><select class="field" id="fStatus"><option>À préparer</option><option>Actif</option><option>Installé</option><option>À valider</option><option>Terminé</option></select><input class="field" id="fTeam" placeholder="Équipe / responsable" value="Équipe terrain #1"><textarea class="field" id="fNote" rows="3" placeholder="Notes terrain, intersections, durée, matériel..."></textarea><button class="actionBtn" onclick="saveChantier()">Créer / sauvegarder fiche</button></div><div class="card"><h3>Résumé</h3><span class="badge live">Actifs: ${inventory.filter(i=>i.status==='Actif').length}</span><span class="badge">À préparer: ${inventory.filter(i=>i.status==='À préparer').length}</span><span class="badge done">Terminés: ${inventory.filter(i=>i.status==='Terminé').length}</span></div><div class="card"><h3>Export rapide</h3><button class="actionBtn" onclick="generatePdfFromLatest()">Télécharger PDF dernière fiche</button><div id="pdfPreview" class="pdfBox small">Le PDF sera aussi ajouté à la bibliothèque interne.</div></div>`;}if(activeTab==='signal'){p.innerHTML=renderSignalisationHtml();}
-if(activeTab==='inventaire'){p.innerHTML=`<div class="card"><h3>Inventaire daté</h3><p class="small">Rues et axes en travaux répertoriés par date.</p></div>`+renderInventoryHtml();}if(activeTab==='agenda'){p.innerHTML=`<div class="card"><h3>Agenda chantier</h3><p class="small">Liste chronologique des interventions.</p></div>`+renderAgendaHtml();}if(activeTab==='repertoire'){p.innerHTML=`<div class="card"><h3>Répertoire MVP Québec</h3><p class="small">Rues/axes prioritaires pour valider le produit sans surcharger le système.</p></div>`+priorityRoads.map((r,i)=>`<div class="roadRow" onclick="selectPriority(${i})"><b>${r.name}</b><small>${r.city} — ${r.type}</small></div>`).join('');}
-if(activeTab==='pdf'){p.innerHTML=`<div class="card"><h3>Générateur PDF par référence</h3><input class="field" id="pdfRefInput" placeholder="Entrer numéro ex: POF-260514-0001"><button class="actionBtn" onclick="generatePdfByRef()">Générer / télécharger PDF</button><p class="small">Sur téléphone/tablette, le fichier sera téléchargé dans le dossier de téléchargement de l’appareil. La bibliothèque interne garde aussi une trace.</p></div><div class="card"><h3>Bibliothèque PDF interne</h3><div id="pdfList">${renderPdfLibrary()}</div></div>`;}}
-function renderPdfLibrary(){if(!pdfLibrary.length)return '<p class="small">Aucun PDF généré.</p>';return pdfLibrary.map((p,i)=>`<div class="inventoryItem"><b>${p.ref}</b><small>${p.fileName}<br>${p.created}<br>Rue: ${p.street}</small></div>`).join('');}
-function renderInventoryHtml(){if(!inventory.length)return '<div class="inventoryItem"><b>Aucun chantier</b><small>Crée une fiche.</small></div>';return inventory.map((i,idx)=>`<div class="inventoryItem" onclick="focusItem(${idx})"><b>${i.ref||'Sans référence'} — ${i.street}</b><small>${i.date} ${i.time} — ${i.type}<br>${i.status} — ${i.team}<br>${i.note||'Aucune note'}</small></div>`).join('');}
-function renderAgendaHtml(){if(!inventory.length)return '<div class="inventoryItem"><b>Aucune date</b><small>Les fiches sauvegardées apparaissent ici.</small></div>';return [...inventory].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(i=>`<div class="calendarRow"><b>${i.date}</b><div><strong>${i.ref||'Sans ref'} — ${i.street}</strong><br><small>${i.time} — ${i.type} — ${i.status}</small></div></div>`).join('');}
-function makeMarker(latlng,label,color,save=true){let icon=L.divIcon({className:'',html:`<div class="sign-label" style="background:${color}">${label}</div>`});let m=L.marker(latlng,{icon,draggable:true}).addTo(map);layers.push(m);if(save){currentSigns.push({lat:latlng.lat||latlng[0],lng:latlng.lng||latlng[1],label,color});m.on('dragend',()=>{const p=m.getLatLng();const s=currentSigns.find(x=>x.label===label&&x.color===color&&Math.abs(x.lat-(latlng.lat||latlng[0]))<0.0001&&Math.abs(x.lng-(latlng.lng||latlng[1]))<0.0001);if(s){s.lat=p.lat;s.lng=p.lng;}});}return m;}
-function createAutoDetour(latlng){
+
+function escapeHtml(str){
+  return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function generateReference(){
+  const d=new Date();
+  const y=String(d.getFullYear()).slice(2);
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  const n=String(inventory.length+1).padStart(4,'0');
+  return `POF-${y}${m}${day}-${n}`;
+}
+
+function getResourceStats(){
+  const counts={};
+  currentSigns.forEach(s=>counts[s.label]=(counts[s.label]||0)+1);
+
+  const panels=currentSigns.filter(s=>!['CÔNES','BARILS','JERSEY','BARRIÈRE','BARRIÈRE PIÉTON'].includes(s.label)).length;
+  const cones=(counts['CÔNES']||0);
+  const barrels=(counts['BARILS']||0);
+  const jersey=(counts['JERSEY']||0);
+  const detours=currentSigns.filter(s=>String(s.label).includes('DÉTOUR')).length;
+  const closures=currentSigns.filter(s=>['FERMÉ','ROUTE BARRÉE','SENS INTERDIT'].includes(s.label)).length;
+
+  const estimatedInstallMinutes = Math.max(20, (panels*6) + (cones*2) + (barrels*3) + (jersey*8) + (detours*5) + (closures*8) + (currentRoutes.length*10));
+  const workers = estimatedInstallMinutes > 90 ? 3 : estimatedInstallMinutes > 45 ? 2 : 1;
+  const riskScore = Math.min(100, 20 + closures*20 + detours*10 + currentRoutes.length*12 + (jersey>0?10:0));
+
+  return {counts,panels,cones,barrels,jersey,detours,closures,estimatedInstallMinutes,workers,riskScore};
+}
+
+function getSignalIARecommendations(){
+  const s=getResourceStats();
+  let rec=[];
+
+  if(!selectedStreet) rec.push('Sélectionner une rue ou un axe principal avant validation.');
+  if(s.closures>0 && s.detours===0) rec.push('Fermeture détectée : ajouter au moins un panneau de détour ou tracer un détour.');
+  if(s.panels<3) rec.push('Ajouter plus de panneaux d’approche pour mieux annoncer la zone.');
+  if(s.closures>0 && !currentSigns.some(x=>x.label==='ROUTE BARRÉE' || x.label==='FERMÉ')) rec.push('Confirmer la présence d’un panneau Route barrée ou Fermé.');
+  if(!currentSigns.some(x=>x.label.includes('TRAVAUX'))) rec.push('Ajouter un panneau Travaux en approche de la zone.');
+  if(!currentSigns.some(x=>x.label.includes('FIN'))) rec.push('Ajouter une signalisation de fin de zone ou fin de détour.');
+  if(s.riskScore>60) rec.push('Risque opérationnel élevé : validation humaine obligatoire avant déploiement.');
+  if(currentRoutes.length===0) rec.push('Aucun tracé de détour enregistré. Tracer un trajet manuel ou utiliser la suggestion IA.');
+  if(currentSigns.some(x=>x.label.includes('PIÉTON'))===false) rec.push('Valider s’il y a une circulation piétonne à protéger.');
+
+  if(!rec.length) rec.push('Configuration de base cohérente pour une prévalidation. Validation terrain requise.');
+  return rec;
+}
+
+/* PANEL CONTROL */
+function setPanel(collapsed){
+  panelCollapsed=collapsed;
+  document.getElementById('rightPanel').classList.toggle('collapsed',collapsed);
+  const btn=document.getElementById('panelToggle');
+  btn.classList.toggle('active',!collapsed);
+  btn.innerHTML=`<span>MENU</span><div class="toggleWrap"><span class="toggleText">${collapsed?'OFF':'ON'}</span><div class="toggleSwitch"><div class="toggleCircle"></div></div></div>`;
+}
+function togglePanel(){setPanel(!panelCollapsed);}
+function collapseForMap(){setPanel(true);}
+function openForForm(){setPanel(false);}
+
+/* MAP MODES */
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
+  let id={move:'moveBtn',work:'workBtn',detour:'detourBtn',closed:'closedBtn',route:'routeBtn'}[m];
+  if(id)document.getElementById(id).classList.add('active');
+
+  status({
+    move:'Mode déplacement.',
+    work:'Clique sur la carte pour placer TRAVAUX.',
+    detour:'Clique sur la carte pour placer DÉTOUR.',
+    closed:'Clique sur la carte pour placer FERMÉ + générer une suggestion SignalIA.',
+    route:'Clique plusieurs points pour tracer un détour manuel.'
+  }[m]);
+
+  collapseForMap();
+}
+
+/* SEARCH / ROADS */
+function renderQuickRoads(){
+  document.getElementById('quickRoads').innerHTML=priorityRoads.slice(0,14).map((r,i)=>`<button class="chip" onclick="selectPriority(${i})">${r.name}</button>`).join('');
+}
+
+function selectPriority(i){
+  const r=priorityRoads[i];
+  selectedStreet=r.name;
+  selectedLatLng=[r.lat,r.lng];
+  document.getElementById('streetSearch').value=r.name;
+  highlightPoint(r.lat,r.lng,r.name);
+  status(`${r.name} sélectionné — ${r.city}.`);
+  renderPanel();
+  openForForm();
+}
+
+function highlightPoint(lat,lng,label){
+  if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);
+  selectedStreetLayer=L.circle([lat,lng],{
+    radius:450,
+    color:'#ff6600',
+    weight:4,
+    fillColor:'#ffd400',
+    fillOpacity:.25
+  }).addTo(map);
+
+  map.setView([lat,lng],16);
+  let m=L.marker([lat,lng]).addTo(map).bindPopup(`<b>${escapeHtml(label)}</b><br>Rue prioritaire sélectionnée`).openPopup();
+  layers.push(m);
+}
+
+async function searchStreet(){
+  const q=document.getElementById('streetSearch').value.trim();
+  if(!q){status('Écris une rue à rechercher.');return;}
+
+  let local=priorityRoads.filter(r=>(r.name+' '+r.city).toLowerCase().includes(q.toLowerCase()));
+  if(local.length){showLocalResults(local);return;}
+
+  status('Recherche OpenStreetMap Québec...');
+  const url=`https://nominatim.openstreetmap.org/search?format=json&limit=8&q=${encodeURIComponent(q+', Québec, Canada')}&addressdetails=1&polygon_geojson=1`;
+
+  try{
+    const res=await fetch(url,{headers:{Accept:'application/json'}});
+    const data=await res.json();
+    showResults(data,q);
+  }catch(e){
+    status('Recherche externe non disponible. Les rues prioritaires fonctionnent hors ligne.');
+  }
+}
+
+function showLocalResults(data){
+  const box=document.getElementById('results');
+  box.innerHTML=data.map((r)=>`<div class="result" onclick="selectPriority(${priorityRoads.indexOf(r)})"><b>${escapeHtml(r.name)}</b><br><small>${escapeHtml(r.city)} — ${escapeHtml(r.type)}</small></div>`).join('');
+  box.style.display='block';
+}
+
+function showResults(data,q){
+  const box=document.getElementById('results');
+  box.innerHTML='';
+  if(!data.length){
+    box.style.display='block';
+    box.innerHTML='<div class="result">Aucun résultat. Essaie une rue majeure ou ajoute-la manuellement au chantier.</div>';
+    return;
+  }
+
+  data.forEach(r=>{
+    let d=document.createElement('div');
+    d.className='result';
+    d.innerHTML=escapeHtml(r.display_name);
+    d.onclick=()=>selectStreet(r,q);
+    box.appendChild(d);
+  });
+  box.style.display='block';
+}
+
+function selectStreet(r,q){
+  document.getElementById('results').style.display='none';
+  selectedStreet=q;
+  selectedLatLng=[+r.lat,+r.lon];
+
+  if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);
+
+  if(r.geojson){
+    selectedStreetLayer=L.geoJSON(r.geojson,{
+      style:{color:'#ff6600',weight:8,opacity:.95,fillColor:'#ffd400',fillOpacity:.18}
+    }).addTo(map);
+    map.fitBounds(selectedStreetLayer.getBounds(),{padding:[70,70],maxZoom:18});
+  }else{
+    highlightPoint(+r.lat,+r.lon,q);
+  }
+
+  let m=L.marker(selectedLatLng).addTo(map).bindPopup(`<b>${escapeHtml(q)}</b><br>Sélection Québec`).openPopup();
+  layers.push(m);
+
+  status('Rue trouvée et surlignée.');
+  renderPanel();
+  openForForm();
+}
+
+/* SIGNS */
+function signVisual(s){
+  if(s.type==='diamond')return `<div class="signDiamond"><span>${s.icon}</span></div>`;
+  if(s.type==='circle')return `<div class="signCircle">${s.icon}</div>`;
+  if(s.type==='blue')return `<div class="signCircle signBlue">${s.icon}</div>`;
+  if(s.type==='green')return `<div class="signRect signGreen">${s.icon}</div>`;
+  if(s.type==='rectYellow')return `<div class="signRect" style="background:#ffd400">${s.icon}</div>`;
+  return `<div class="signRect">${s.icon}</div>`;
+}
+
+function setSignalCat(c){
+  activeSignalCat=c;
+  renderPanel();
+}
+
+function renderSignalisationHtml(){
+  const cats=signalCategories.map(c=>`<button class="signCat ${activeSignalCat===c?'active':''}" onclick="setSignalCat('${c}')">${c}</button>`).join('');
+  const list=quebecSigns.filter(s=>activeSignalCat==='Tous'||s.cat===activeSignalCat);
+  const grid=list.map(s=>`
+    <div class="signCard" onclick="addQuebecSign('${s.name.replace(/'/g,"\\'")}')">
+      <div class="signIcon">${signVisual(s)}</div>
+      <div class="signName">${escapeHtml(s.name)}</div>
+      <div class="signDesc">${escapeHtml(s.cat)}<br>${escapeHtml(s.desc)}</div>
+    </div>`).join('');
+
+  return `
+    <div class="card">
+      <h3>Signalisation Québec — bibliothèque MVP</h3>
+      <p class="small">Clique une catégorie, puis un panneau pour l’ajouter au chantier et à la carte.</p>
+      <div class="signCategoryGrid">${cats}</div>
+      <div class="signGrid">${grid}</div>
+    </div>
+    <div class="card">
+      <h3>Panneaux sélectionnés</h3>
+      ${renderSelectedSigns()}
+    </div>`;
+}
+
+function renderSelectedSigns(){
+  if(!currentSigns.length)return '<p class="small">Aucun panneau ajouté au chantier.</p>';
+  let counts={};
+  currentSigns.forEach(s=>{counts[s.label]=(counts[s.label]||0)+1});
+  return '<div class="selectedSigns">'+Object.keys(counts).map(k=>`<div><span>${escapeHtml(k)}</span><span>x${counts[k]} <button onclick="removeOneSign('${k.replace(/'/g,"\\'")}')">−</button></span></div>`).join('')+'</div>';
+}
+
+function addQuebecSign(name){
+  const s=quebecSigns.find(x=>x.name===name);
+  if(!s)return;
+
+  let base=selectedLatLng?{lat:selectedLatLng[0],lng:selectedLatLng[1]}:map.getCenter();
+  let offset=(currentSigns.length%10)*0.00035;
+  let latlng={lat:base.lat+offset,lng:base.lng+offset};
+
+  makeMarker(latlng,s.label,s.color,true);
+  status('Panneau ajouté: '+s.name);
+  renderPanel();
+}
+
+function removeOneSign(label){
+  const idx=currentSigns.findIndex(s=>s.label===label);
+  if(idx>=0){
+    currentSigns.splice(idx,1);
+    status('Panneau retiré: '+label+' — nettoie/recharge la carte au besoin.');
+    renderPanel();
+  }
+}
+
+function makeMarker(latlng,label,color,save=true){
+  let icon=L.divIcon({
+    className:'',
+    html:`<div class="sign-label" style="background:${color}">${escapeHtml(label)}</div>`
+  });
+
+  let m=L.marker(latlng,{icon,draggable:true}).addTo(map);
+  layers.push(m);
+
+  if(save){
+    const initialLat=latlng.lat||latlng[0];
+    const initialLng=latlng.lng||latlng[1];
+    let obj={lat:initialLat,lng:initialLng,label,color};
+    currentSigns.push(obj);
+
+    m.on('dragend',()=>{
+      const p=m.getLatLng();
+      obj.lat=p.lat;
+      obj.lng=p.lng;
+    });
+  }
+
+  return m;
+}
+
+/* ROUTING / SIGNALIA */
+function createSignalIADetour(latlng){
   const lat=latlng.lat;
   const lng=latlng.lng;
   const offsetLat=0.0042;
   const offsetLng=0.0062;
+
   const points=[
     [lat-offsetLat,lng-offsetLng],
     [lat-offsetLat,lng+offsetLng],
     [lat+offsetLat,lng+offsetLng],
     [lat+offsetLat,lng-offsetLng]
   ];
-  const line=L.polyline(points,{color:'#ffd400',weight:7,opacity:.95,dashArray:'10,8'}).addTo(map);
-  line.bindPopup('<b>Détour automatique proposé</b><br>Prototype : trajet contournant la rue barrée.');
+
+  const line=L.polyline(points,{
+    color:'#ffd400',
+    weight:7,
+    opacity:.95,
+    dashArray:'10,8'
+  }).addTo(map);
+
+  line.bindPopup('<b>Suggestion SignalIA</b><br>Détour préliminaire à valider par un responsable terrain.');
   layers.push(line);
-  currentRoutes.push({points,color:'#ffd400',auto:true,label:'Détour automatique proposé'});
+
+  currentRoutes.push({
+    points,
+    color:'#ffd400',
+    auto:true,
+    label:'Suggestion SignalIA — détour à valider'
+  });
+
   makeMarker(points[0],'DÉBUT','#ffd400');
   makeMarker(points[points.length-1],'FIN','#ffd400');
-  status('Rue barrée : détour automatique proposé et mémorisé dans la fiche.');
+  makeMarker(latlng,'FERMÉ','#d40000');
+
+  status('SignalIA : détour préliminaire généré. Validation humaine obligatoire.');
+  renderPanel();
 }
-map.on('movestart',collapseForMap);map.on('zoomstart',collapseForMap);map.on('click',e=>{collapseForMap();selectedLatLng=[e.latlng.lat,e.latlng.lng];if(mode==='work')makeMarker(e.latlng,'TRAVAUX','#ff6600');if(mode==='detour')makeMarker(e.latlng,'DÉTOUR','#ffd400');if(mode==='closed'){
-  makeMarker(e.latlng,'FERMÉ','#d40000');
-  createAutoDetour(e.latlng);
-}if(mode==='route'){routePoints.push([e.latlng.lat,e.latlng.lng]);if(routeLine)map.removeLayer(routeLine);routeLine=L.polyline(routePoints,{color:'#ff6600',weight:7,opacity:.9}).addTo(map);currentRoutes=[...currentRoutes.filter(r=>!r.active),{active:true,points:routePoints,color:'#ff6600'}];}});
-function saveChantier(){let item={ref:document.getElementById('fRef').value||generateReference(),street:document.getElementById('fStreet').value||selectedStreet||'Rue à préciser',date:document.getElementById('fDate').value,time:document.getElementById('fTime').value,type:document.getElementById('fType').value,status:document.getElementById('fStatus').value,team:document.getElementById('fTeam').value,note:document.getElementById('fNote').value,latlng:selectedLatLng,signs:JSON.parse(JSON.stringify(currentSigns)),routes:JSON.parse(JSON.stringify(currentRoutes.map(r=>({points:r.points,color:r.color||'#ff6600',auto:r.auto||false,label:r.label||'Détour'})))),created:new Date().toLocaleString('fr-CA')};inventory.unshift(item);localStorage.setItem('pofinoInventoryV4',JSON.stringify(inventory));if(item.latlng){let c=item.type.includes('fermée')?'#d40000':item.type.includes('Détour')?'#ffd400':'#ff6600';makeMarker(item.latlng,item.type.toUpperCase(),c).bindPopup(`<b>${item.street}</b><br>${item.date} ${item.time}<br>${item.status}<br>${item.team}`);}status('Fiche sauvegardée dans l’inventaire V6.');renderPanel();}
-function focusItem(idx){let i=inventory[idx];restoreChantierMap(i);if(i.latlng)map.setView(i.latlng,17);status('Ancien chantier restauré: '+(i.ref||'Sans ref')+' — '+i.street);}
+
+/* MAP EVENTS */
+map.on('movestart',collapseForMap);
+map.on('zoomstart',collapseForMap);
+
+map.on('click',e=>{
+  collapseForMap();
+  selectedLatLng=[e.latlng.lat,e.latlng.lng];
+
+  if(mode==='work')makeMarker(e.latlng,'TRAVAUX','#ff6600');
+  if(mode==='detour')makeMarker(e.latlng,'DÉTOUR','#ffd400');
+  if(mode==='closed')createSignalIADetour(e.latlng);
+
+  if(mode==='route'){
+    routePoints.push([e.latlng.lat,e.latlng.lng]);
+    if(routeLine)map.removeLayer(routeLine);
+    routeLine=L.polyline(routePoints,{color:'#ff6600',weight:7,opacity:.9}).addTo(map);
+    currentRoutes=[...currentRoutes.filter(r=>!r.active),{active:true,points:routePoints,color:'#ff6600',label:'Détour manuel'}];
+    status('Point de détour manuel ajouté.');
+  }
+});
+
+/* VALIDATION TERRAIN */
+function toggleValidation(key){
+  const idx=currentValidations.indexOf(key);
+  if(idx>=0)currentValidations.splice(idx,1);
+  else currentValidations.push(key);
+  renderPanel();
+}
+
+function renderValidationRows(){
+  const items=[
+    ['gps','Position GPS confirmée'],
+    ['photos','Photos terrain prises'],
+    ['qr','Codes QR scannés'],
+    ['panneaux','Panneaux installés'],
+    ['detour','Détour validé par responsable'],
+    ['securite','Sécurité travailleurs/public validée'],
+    ['retrait','Retrait planifié ou confirmé']
+  ];
+
+  return items.map(([key,label])=>`
+    <div class="validationRow">
+      <span>${label}</span>
+      <button class="${currentValidations.includes(key)?'done':''}" onclick="toggleValidation('${key}')">${currentValidations.includes(key)?'OK':'À faire'}</button>
+    </div>
+  `).join('');
+}
+
+/* RENDER PANEL */
+function showTab(tab,el){
+  activeTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  renderPanel();
+}
+
+function renderPanel(){
+  const p=document.getElementById('panelContent');
+  const stats=getResourceStats();
+
+  if(activeTab==='chantier'){
+    p.innerHTML=`
+      <div class="card">
+        <h3>Fiche chantier actif</h3>
+        <input class="field" id="fRef" placeholder="Référence" value="${generateReference()}" readonly>
+        <input class="field" id="fProject" placeholder="Nom du projet" value="Projet signalisation temporaire">
+        <input class="field" id="fStreet" placeholder="Rue / axe" value="${escapeHtml(selectedStreet)}">
+        <div class="grid2">
+          <input class="field" id="fDate" type="date" value="${today}">
+          <input class="field" id="fTime" type="time" value="08:00">
+        </div>
+        <div class="grid2">
+          <select class="field" id="fType">
+            <option>Travaux</option>
+            <option>Détour</option>
+            <option>Rue fermée</option>
+            <option>Entrave partielle</option>
+            <option>Signalisation temporaire</option>
+            <option>Travaux de nuit</option>
+            <option>Intervention urgente</option>
+          </select>
+          <select class="field" id="fPhase">
+            <option>Phase 1</option>
+            <option>Phase 2</option>
+            <option>Phase 3</option>
+            <option>Réouverture</option>
+          </select>
+        </div>
+        <select class="field" id="fStatus">
+          <option>À préparer</option>
+          <option>Actif</option>
+          <option>Installé</option>
+          <option>À valider</option>
+          <option>Terminé</option>
+        </select>
+        <input class="field" id="fTeam" placeholder="Équipe / responsable" value="Équipe terrain #1">
+        <textarea class="field" id="fNote" rows="3" placeholder="Notes terrain, intersections, durée, matériel..."></textarea>
+        <button class="actionBtn" onclick="saveChantier()">Créer / sauvegarder fiche</button>
+      </div>
+
+      <div class="card">
+        <h3>Résumé opérationnel</h3>
+        <span class="badge live">Panneaux: ${stats.panels}</span>
+        <span class="badge yellow">Détours: ${stats.detours}</span>
+        <span class="badge closed">Fermetures: ${stats.closures}</span>
+        <span class="badge purple">Routes: ${currentRoutes.length}</span>
+        <span class="badge done">Validation: ${currentValidations.length}/7</span>
+      </div>
+
+      <div class="card">
+        <h3>Export rapide</h3>
+        <button class="actionBtn" onclick="generatePdfFromLatest()">Télécharger PDF dernière fiche</button>
+        <div id="pdfPreview" class="pdfBox small">Le PDF sera ajouté à la bibliothèque interne et téléchargé sur l’appareil.</div>
+      </div>`;
+  }
+
+  if(activeTab==='signal'){
+    p.innerHTML=renderSignalisationHtml();
+  }
+
+  if(activeTab==='ia'){
+    const rec=getSignalIARecommendations();
+    p.innerHTML=`
+      <div class="card">
+        <h3>SignalIA — assistant d’optimisation</h3>
+        <p class="small">SignalIA fournit une préanalyse opérationnelle. La décision finale doit toujours être validée par un responsable qualifié.</p>
+      </div>
+
+      <div class="card">
+        <h3>Calcul automatique</h3>
+        <div class="scoreBox">
+          <div class="score"><b>${stats.estimatedInstallMinutes} min</b><span>Temps installation estimé</span></div>
+          <div class="score"><b>${stats.workers}</b><span>Travailleurs suggérés</span></div>
+          <div class="score"><b>${stats.riskScore}/100</b><span>Indice de complexité</span></div>
+          <div class="score"><b>${Object.keys(stats.counts).length}</b><span>Types d’équipements</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Matériel estimé</h3>
+        <span class="badge live">Panneaux: ${stats.panels}</span>
+        <span class="badge">Cônes: ${stats.cones}</span>
+        <span class="badge">Barils: ${stats.barrels}</span>
+        <span class="badge">Jersey: ${stats.jersey}</span>
+        <span class="badge yellow">Détours: ${stats.detours}</span>
+        <span class="badge closed">Fermetures: ${stats.closures}</span>
+      </div>
+
+      <div class="card">
+        <h3>Recommandations SignalIA</h3>
+        ${rec.map(r=>`<div class="warning" style="margin-bottom:8px">${escapeHtml(r)}</div>`).join('')}
+      </div>
+
+      <div class="card">
+        <h3>Action rapide</h3>
+        <button class="actionBtn" onclick="setMode('closed')">Placer fermeture + suggestion SignalIA</button>
+      </div>`;
+  }
+
+  if(activeTab==='inventaire'){
+    p.innerHTML=`
+      <div class="card">
+        <h3>Inventaire chantier</h3>
+        <p class="small">Les fiches sauvegardées apparaissent ici. Cliquez une fiche pour restaurer la carte.</p>
+        <span class="badge live">Actifs: ${inventory.filter(i=>i.status==='Actif').length}</span>
+        <span class="badge">À préparer: ${inventory.filter(i=>i.status==='À préparer').length}</span>
+        <span class="badge done">Terminés: ${inventory.filter(i=>i.status==='Terminé').length}</span>
+      </div>
+      ${renderInventoryHtml()}`;
+  }
+
+  if(activeTab==='terrain'){
+    p.innerHTML=`
+      <div class="card">
+        <h3>Validation terrain mobile</h3>
+        <p class="small">Prototype de contrôle terrain : installation, photos, QR, sécurité et retrait.</p>
+        ${renderValidationRows()}
+      </div>
+      <div class="card">
+        <h3>Notes terrain</h3>
+        <textarea class="field" id="terrainNote" rows="5" placeholder="Ajouter observation terrain, bris, correction, photo à prendre..."></textarea>
+        <button class="actionBtn" onclick="status('Note terrain ajoutée localement au prototype.')">Ajouter note</button>
+      </div>`;
+  }
+
+  if(activeTab==='agenda'){
+    p.innerHTML=`
+      <div class="card">
+        <h3>Agenda chantier</h3>
+        <p class="small">Liste chronologique des interventions sauvegardées.</p>
+      </div>
+      ${renderAgendaHtml()}`;
+  }
+
+  if(activeTab==='pdf'){
+    p.innerHTML=`
+      <div class="card">
+        <h3>Générateur PDF par référence</h3>
+        <input class="field" id="pdfRefInput" placeholder="Entrer numéro ex: POF-260514-0001">
+        <button class="actionBtn" onclick="generatePdfByRef()">Générer / télécharger PDF</button>
+        <p class="small">Le PDF inclut résumé chantier, matériel, recommandations SignalIA et validation terrain.</p>
+      </div>
+      <div class="card">
+        <h3>Bibliothèque PDF interne</h3>
+        <div id="pdfList">${renderPdfLibrary()}</div>
+      </div>
+      <div class="card">
+        <h3>Clause prototype</h3>
+        <p class="small">Ce prototype démontre la logique produit. Pour usage réel, conformité, normes applicables et responsabilité doivent être validées par des professionnels qualifiés.</p>
+      </div>`;
+  }
+}
+
+function renderInventoryHtml(){
+  if(!inventory.length)return '<div class="inventoryItem"><b>Aucun chantier</b><small>Crée une fiche chantier.</small></div>';
+  return inventory.map((i,idx)=>`
+    <div class="inventoryItem" onclick="focusItem(${idx})">
+      <b>${escapeHtml(i.ref||'Sans référence')} — ${escapeHtml(i.street)}</b>
+      <small>
+        ${escapeHtml(i.date)} ${escapeHtml(i.time)} — ${escapeHtml(i.type)} — ${escapeHtml(i.phase||'Phase 1')}<br>
+        ${escapeHtml(i.status)} — ${escapeHtml(i.team)}<br>
+        Signalisation: ${(i.signs||[]).length} éléments — Routes: ${(i.routes||[]).length}<br>
+        ${escapeHtml(i.note||'Aucune note')}
+      </small>
+    </div>`).join('');
+}
+
+function renderAgendaHtml(){
+  if(!inventory.length)return '<div class="inventoryItem"><b>Aucune date</b><small>Les fiches sauvegardées apparaissent ici.</small></div>';
+  return [...inventory].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(i=>`
+    <div class="calendarRow">
+      <b>${escapeHtml(i.date)}</b>
+      <div>
+        <strong>${escapeHtml(i.ref||'Sans ref')} — ${escapeHtml(i.street)}</strong><br>
+        <small>${escapeHtml(i.time)} — ${escapeHtml(i.type)} — ${escapeHtml(i.status)}</small>
+      </div>
+    </div>`).join('');
+}
+
+function renderPdfLibrary(){
+  if(!pdfLibrary.length)return '<p class="small">Aucun PDF généré.</p>';
+  return pdfLibrary.map((p,i)=>`
+    <div class="inventoryItem">
+      <b>${escapeHtml(p.ref)}</b>
+      <small>${escapeHtml(p.fileName)}<br>${escapeHtml(p.created)}<br>Rue: ${escapeHtml(p.street)}</small>
+    </div>`).join('');
+}
+
+/* SAVE / RESTORE */
+function saveChantier(){
+  const stats=getResourceStats();
+  const rec=getSignalIARecommendations();
+
+  let item={
+    ref:document.getElementById('fRef').value||generateReference(),
+    project:document.getElementById('fProject').value||'Projet signalisation temporaire',
+    street:document.getElementById('fStreet').value||selectedStreet||'Rue à préciser',
+    date:document.getElementById('fDate').value,
+    time:document.getElementById('fTime').value,
+    type:document.getElementById('fType').value,
+    phase:document.getElementById('fPhase').value,
+    status:document.getElementById('fStatus').value,
+    team:document.getElementById('fTeam').value,
+    note:document.getElementById('fNote').value,
+    latlng:selectedLatLng,
+    signs:JSON.parse(JSON.stringify(currentSigns)),
+    routes:JSON.parse(JSON.stringify(currentRoutes.map(r=>({
+      points:r.points,
+      color:r.color||'#ff6600',
+      auto:r.auto||false,
+      label:r.label||'Détour'
+    })))),
+    validations:JSON.parse(JSON.stringify(currentValidations)),
+    stats,
+    recommendations:rec,
+    created:new Date().toLocaleString('fr-CA')
+  };
+
+  inventory.unshift(item);
+  localStorage.setItem('pofinoInventoryV61',JSON.stringify(inventory));
+
+  if(item.latlng){
+    let c=item.type.includes('fermée')?'#d40000':item.type.includes('Détour')?'#ffd400':'#ff6600';
+    makeMarker(item.latlng,item.type.toUpperCase(),c).bindPopup(`<b>${escapeHtml(item.street)}</b><br>${escapeHtml(item.date)} ${escapeHtml(item.time)}<br>${escapeHtml(item.status)}<br>${escapeHtml(item.team)}`);
+  }
+
+  status('Fiche sauvegardée dans l’inventaire POFINO V6.1.');
+  renderPanel();
+}
+
+function focusItem(idx){
+  let i=inventory[idx];
+  restoreChantierMap(i);
+  if(i.latlng)map.setView(i.latlng,17);
+  status('Chantier restauré: '+(i.ref||'Sans ref')+' — '+i.street);
+}
+
 function restoreChantierMap(item){
   clearMap(false);
   selectedStreet=item.street||'';
   selectedLatLng=item.latlng||null;
   currentSigns=[];
   currentRoutes=[];
+  currentValidations=item.validations||[];
+
   if(item.latlng){
-    selectedStreetLayer=L.circle(item.latlng,{radius:450,color:'#ff6600',weight:4,fillColor:'#ffd400',fillOpacity:.18}).addTo(map);
+    selectedStreetLayer=L.circle(item.latlng,{
+      radius:450,
+      color:'#ff6600',
+      weight:4,
+      fillColor:'#ffd400',
+      fillOpacity:.18
+    }).addTo(map);
   }
+
   if(item.signs&&item.signs.length){
     item.signs.forEach(s=>makeMarker([s.lat,s.lng],s.label,s.color,false));
     currentSigns=JSON.parse(JSON.stringify(item.signs));
   }
+
   if(item.routes&&item.routes.length){
     item.routes.forEach(r=>{
-      const line=L.polyline(r.points,{color:r.color||'#ff6600',weight:7,opacity:.9,dashArray:r.auto?'10,8':null}).addTo(map);
-      line.bindPopup(r.label||'Détour');
+      const line=L.polyline(r.points,{
+        color:r.color||'#ff6600',
+        weight:7,
+        opacity:.9,
+        dashArray:r.auto?'10,8':null
+      }).addTo(map);
+      line.bindPopup(escapeHtml(r.label||'Détour'));
       layers.push(line);
-      currentRoutes.push({points:r.points,color:r.color||'#ff6600',auto:r.auto||false,label:r.label||'Détour'});
+      currentRoutes.push({
+        points:r.points,
+        color:r.color||'#ff6600',
+        auto:r.auto||false,
+        label:r.label||'Détour'
+      });
     });
   }
+
   renderPanel();
 }
-function generatePdfFromLatest(){if(!inventory.length){status('Aucune fiche à exporter.');return;}generatePdf(inventory[0]);}
-function generatePdfByRef(){const ref=document.getElementById('pdfRefInput').value.trim();const item=inventory.find(i=>(i.ref||'').toLowerCase()===ref.toLowerCase());if(!item){status('Référence introuvable dans l’inventaire.');return;}generatePdf(item);}
+
+/* PDF */
+function generatePdfFromLatest(){
+  if(!inventory.length){status('Aucune fiche à exporter.');return;}
+  generatePdf(inventory[0]);
+}
+
+function generatePdfByRef(){
+  const ref=document.getElementById('pdfRefInput').value.trim();
+  const item=inventory.find(i=>(i.ref||'').toLowerCase()===ref.toLowerCase());
+  if(!item){status('Référence introuvable dans l’inventaire.');return;}
+  generatePdf(item);
+}
+
 function generatePdf(item){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFontSize(18);doc.text('POFINO — PLAN DE TRAVAIL CHANTIER',14,18);
-  doc.setFontSize(11);
-  let y=32;
-  const lines=[
-    ['Référence',item.ref||'Sans référence'],['Rue / Axe',item.street],['Date',item.date+' '+item.time],['Type',item.type],['Statut',item.status],['Équipe',item.team],['Créé',item.created],['Notes',item.note||'Aucune note']
-  ];
-  lines.forEach(row=>{doc.setFont(undefined,'bold');doc.text(row[0]+':',14,y);doc.setFont(undefined,'normal');doc.text(String(row[1]),55,y,{maxWidth:135});y+=10;});
-  doc.line(14,y,196,y);y+=10;
-  if(item.signs&&item.signs.length){doc.setFont(undefined,'bold');doc.text('Signalisation sélectionnée',14,y);y+=8;doc.setFont(undefined,'normal');let c={};item.signs.forEach(s=>c[s.label]=(c[s.label]||0)+1);Object.keys(c).forEach(k=>{doc.text('- '+k+' x '+c[k],18,y);y+=7;});y+=3;}
-  doc.setFont(undefined,'bold');doc.text('Instructions terrain',14,y);y+=8;doc.setFont(undefined,'normal');
-  doc.text('1. Vérifier la rue et les intersections avant installation.',14,y,{maxWidth:180});y+=8;
-  doc.text('2. Installer la signalisation selon le plan validé.',14,y,{maxWidth:180});y+=8;
-  doc.text('3. Confirmer le statut dans l’inventaire POFINO.',14,y,{maxWidth:180});y+=8;
-  doc.text('4. Conserver ce PDF comme feuille de travail officielle.',14,y,{maxWidth:180});
-  doc.setFontSize(9);doc.text('Prototype HTML — téléchargement local sur appareil. Hébergement et déploiement à la discrétion du client.',14,285);
-  const fileName=`${item.ref||'POFINO'}_${item.street.replace(/[^a-z0-9]/gi,'_')}.pdf`;
+  const stats=item.stats||getResourceStats();
+  const recommendations=item.recommendations||getSignalIARecommendations();
+
+  let y=16;
+
+  doc.setFillColor(255,102,0);
+  doc.rect(0,0,210,24,'F');
+  doc.setTextColor(20,20,20);
+  doc.setFontSize(18);
+  doc.setFont(undefined,'bold');
+  doc.text('POFINO V6.1 — PLAN DE SIGNALISATION',14,16);
+
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(10);
+  doc.setFont(undefined,'normal');
+  y=34;
+
+  function row(label,value){
+    doc.setFont(undefined,'bold');
+    doc.text(label+':',14,y);
+    doc.setFont(undefined,'normal');
+    doc.text(String(value||''),58,y,{maxWidth:135});
+    y+=8;
+  }
+
+  row('Référence',item.ref||'Sans référence');
+  row('Projet',item.project||'Projet signalisation temporaire');
+  row('Rue / Axe',item.street);
+  row('Date',item.date+' '+item.time);
+  row('Type',item.type);
+  row('Phase',item.phase||'Phase 1');
+  row('Statut',item.status);
+  row('Responsable',item.team);
+  row('Créé',item.created);
+
+  y+=3;
+  doc.line(14,y,196,y);
+  y+=9;
+
+  doc.setFont(undefined,'bold');
+  doc.text('Résumé matériel',14,y);
+  y+=8;
+  doc.setFont(undefined,'normal');
+  doc.text(`Panneaux: ${stats.panels||0} | Cônes: ${stats.cones||0} | Barils: ${stats.barrels||0} | Jersey: ${stats.jersey||0}`,14,y);
+  y+=7;
+  doc.text(`Détours: ${stats.detours||0} | Fermetures: ${stats.closures||0} | Routes tracées: ${(item.routes||[]).length}`,14,y);
+  y+=7;
+  doc.text(`Temps installation estimé: ${stats.estimatedInstallMinutes||0} min | Travailleurs suggérés: ${stats.workers||0} | Complexité: ${stats.riskScore||0}/100`,14,y);
+  y+=10;
+
+  if(item.signs&&item.signs.length){
+    doc.setFont(undefined,'bold');
+    doc.text('Signalisation sélectionnée',14,y);
+    y+=8;
+    doc.setFont(undefined,'normal');
+    let c={};
+    item.signs.forEach(s=>c[s.label]=(c[s.label]||0)+1);
+    Object.keys(c).forEach(k=>{
+      if(y>260){doc.addPage();y=18;}
+      doc.text('- '+k+' x '+c[k],18,y);
+      y+=7;
+    });
+    y+=3;
+  }
+
+  doc.setFont(undefined,'bold');
+  doc.text('Recommandations SignalIA',14,y);
+  y+=8;
+  doc.setFont(undefined,'normal');
+  recommendations.forEach(r=>{
+    if(y>260){doc.addPage();y=18;}
+    doc.text('- '+String(r),18,y,{maxWidth:175});
+    y+=10;
+  });
+
+  y+=2;
+  if(y>235){doc.addPage();y=18;}
+
+  doc.setFont(undefined,'bold');
+  doc.text('Validation terrain',14,y);
+  y+=8;
+  doc.setFont(undefined,'normal');
+  const vals=item.validations||[];
+  const labels={gps:'Position GPS confirmée',photos:'Photos terrain prises',qr:'Codes QR scannés',panneaux:'Panneaux installés',detour:'Détour validé',securite:'Sécurité validée',retrait:'Retrait planifié/confirmé'};
+  Object.keys(labels).forEach(k=>{
+    doc.text(`${vals.includes(k)?'[OK]':'[  ]'} ${labels[k]}`,18,y);
+    y+=7;
+  });
+
+  y+=5;
+  doc.setFont(undefined,'bold');
+  doc.text('Notes',14,y);
+  y+=8;
+  doc.setFont(undefined,'normal');
+  doc.text(item.note||'Aucune note.',14,y,{maxWidth:180});
+
+  doc.setFontSize(8);
+  doc.setTextColor(90,90,90);
+  doc.text('Clause prototype : SignalIA assiste la planification. La conformité et la décision finale doivent être validées par un responsable qualifié.',14,286);
+
+  const safeStreet=String(item.street||'chantier').replace(/[^a-z0-9]/gi,'_');
+  const fileName=`${item.ref||'POFINO'}_${safeStreet}.pdf`;
+
   doc.save(fileName);
-  pdfLibrary.unshift({ref:item.ref||'Sans référence',fileName,street:item.street,created:new Date().toLocaleString('fr-CA')});
-  localStorage.setItem('pofinoPdfLibraryV4',JSON.stringify(pdfLibrary));
-  status('PDF téléchargé et ajouté à la bibliothèque interne: '+fileName);
+
+  pdfLibrary.unshift({
+    ref:item.ref||'Sans référence',
+    fileName,
+    street:item.street,
+    created:new Date().toLocaleString('fr-CA')
+  });
+
+  localStorage.setItem('pofinoPdfLibraryV61',JSON.stringify(pdfLibrary));
+  status('PDF professionnel téléchargé et ajouté à la bibliothèque interne: '+fileName);
+
   if(activeTab==='pdf')renderPanel();
 }
-function clearMap(showStatus=true){layers.forEach(l=>map.removeLayer(l));if(routeLine)map.removeLayer(routeLine);if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);selectedStreetLayer=null;layers=[];routePoints=[];routeLine=null;currentSigns=[];currentRoutes=[];if(showStatus)status('Carte nettoyée. Inventaire conservé.');collapseForMap();}
-renderQuickRoads();setMode('move');setPanel(false);renderPanel();
+
+/* CLEAR */
+function clearMap(showStatus=true){
+  layers.forEach(l=>map.removeLayer(l));
+  if(routeLine)map.removeLayer(routeLine);
+  if(selectedStreetLayer)map.removeLayer(selectedStreetLayer);
+
+  selectedStreetLayer=null;
+  layers=[];
+  routePoints=[];
+  routeLine=null;
+  currentSigns=[];
+  currentRoutes=[];
+  currentValidations=[];
+
+  if(showStatus)status('Carte nettoyée. Inventaire conservé.');
+  collapseForMap();
+  renderPanel();
+}
+
+/* INIT */
+renderQuickRoads();
+setMode('move');
+setPanel(false);
+renderPanel();
+
 </script>
 </body>
 </html>
