@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>POFINO V7.1 — Corridors Montréal</title>
+<title>POFINO V7.3 — DOC2MAP + Corridors Montréal</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -156,7 +156,7 @@ button:hover{filter:brightness(1.08);}
 .drawerHandle button{width:42px;height:54px;border-radius:16px 0 0 16px;padding:0;color:#111;background:var(--orange);}
 
 /* TABS */
-.tabs{display:grid;grid-template-columns:repeat(9,1fr);border-bottom:1px solid #333;}
+.tabs{display:grid;grid-template-columns:repeat(10,1fr);border-bottom:1px solid #333;}
 .tab{padding:12px 2px;background:#161616;color:#aaa;font-size:9.5px;text-align:center;font-weight:900;cursor:pointer;}
 .tab.active{background:var(--orange);color:#111;}
 .content{padding:14px;overflow:auto;}
@@ -292,6 +292,46 @@ textarea.field{resize:vertical;}
   .drawerHandle button{border-radius:15px;width:58px;height:42px;}
   .results{left:10px;right:10px;top:76px;}
 }
+
+/* DOC2MAP */
+.docDrop{
+  border:2px dashed rgba(255,102,0,.8);border-radius:18px;padding:22px 14px;text-align:center;
+  background:linear-gradient(135deg,#17120f,#161616);cursor:pointer;transition:.2s;
+}
+.docDrop.drag{border-color:var(--yellow);background:#211d0f;}
+.docDrop strong{display:block;color:var(--orange);font-size:18px;margin-bottom:4px;}
+.docDrop input{display:block;}
+.docNativeFile{width:100%;background:#fff;color:#111;border:2px solid var(--orange);border-radius:13px;padding:10px;font-size:14px;}
+.docNativeFile::file-selector-button{background:var(--orange);color:#111;border:0;border-radius:10px;padding:10px 12px;font-weight:900;margin-right:10px;}
+.docProgress{height:8px;background:#2c2c2c;border-radius:999px;overflow:hidden;margin-top:10px;}
+.docProgress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--orange),var(--yellow));transition:.2s;}
+.docLiveStatus{margin-top:10px;padding:10px 12px;border-radius:12px;background:#101010;border:1px solid #3a3a3a;color:#ddd;font-size:12px;line-height:1.4;}
+.docLiveStatus.busy{border-color:var(--yellow);background:#191300;color:#fff;}
+.docLiveStatus.ok{border-color:var(--green);background:#06160d;color:#fff;}
+.docLiveStatus.err{border-color:var(--red);background:#1c0808;color:#fff;}
+.docItem,.docAction{
+  background:#222;border:1px solid #393939;border-radius:14px;padding:10px;margin-bottom:8px;
+}
+.docItem{cursor:pointer}.docItem:hover{border-color:var(--orange);}
+.docHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;}
+.docHead b{overflow-wrap:anywhere;}
+.docAction{border-left:4px solid var(--orange);}
+.docPreview{
+  background:#0c0c0c;border:1px solid #333;border-radius:12px;padding:10px;white-space:pre-wrap;
+  max-height:220px;overflow:auto;color:#ddd;font:11px/1.45 monospace;
+}
+.docModal{
+  position:fixed;inset:0;z-index:60000;background:rgba(0,0,0,.78);display:flex;align-items:center;
+  justify-content:center;padding:16px;
+}
+.docModal.hidden{display:none;}
+.docModalBox{
+  width:min(920px,100%);max-height:92vh;overflow:auto;background:#111;border:1px solid var(--orange);
+  border-radius:24px;padding:16px;box-shadow:0 30px 90px rgba(0,0,0,.8);
+}
+.docRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.docGrow{flex:1;}
+
 </style>
 </head>
 
@@ -303,8 +343,8 @@ textarea.field{resize:vertical;}
     <div class="startGrid">
       <div>
         <div class="startTitle">
-          <b>POFINO V7.1</b>
-          <span>Corridors Montréal intégrés — corridors Montréal intégrés</span>
+          <b>POFINO V7.3</b>
+          <span>DOC2MAP + Corridors Montréal intégrés</span>
           <small>Propulsé par SignalIA</small>
         </div>
         <div class="roleGrid">
@@ -328,7 +368,7 @@ textarea.field{resize:vertical;}
 
 <div class="topbar">
   <div class="brand">
-    <b>POFINO V7.1</b>
+    <b>POFINO V7.3</b>
     <span id="roleText">Prototype pilote maximum</span>
     <small>SignalIA intégré</small>
   </div>
@@ -365,6 +405,7 @@ textarea.field{resize:vertical;}
     <div class="tab" data-tab="chantier" onclick="showTab('chantier',this)">Chant.</div>
     <div class="tab" data-tab="signal" onclick="showTab('signal',this)">Signal</div>
     <div class="tab" data-tab="ia" onclick="showTab('ia',this)">IA</div>
+    <div class="tab" data-tab="doc2map" onclick="showTab('doc2map',this)">DOC2</div>
     <div class="tab" data-tab="inventaire" onclick="showTab('inventaire',this)">Invent.</div>
     <div class="tab" data-tab="terrain" onclick="showTab('terrain',this)">Terrain</div>
     <div class="tab" data-tab="conformite" onclick="showTab('conformite',this)">Conf.</div>
@@ -376,8 +417,21 @@ textarea.field{resize:vertical;}
 
 <div class="drawerHandle"><button onclick="toggleDrawer()">☰</button></div>
 
+
+<div id="docModal" class="docModal hidden">
+  <div id="docModalContent" class="docModalBox"></div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script type="module">
+import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.worker.mjs";
+window.pdfjsLib=pdfjsLib;
+window.dispatchEvent(new Event("pofino-pdfjs-ready"));
+</script>
+
 
 <script>
 /* ============================================================
@@ -533,7 +587,16 @@ let corridorLayers=[];
 let activeCorridorId='';
 let inventory=JSON.parse(localStorage.getItem('pofino_v7_inventory')||'[]');
 let pdfLibrary=JSON.parse(localStorage.getItem('pofino_v7_pdf')||'[]');
+let doc2mapLibrary=JSON.parse(localStorage.getItem('pofino_v73_doc2map')||'[]');
+let doc2mapProposalLayers=[];
+let activeDoc2MapId='';
+
 const today=new Date().toISOString().slice(0,10);
+
+
+window.addEventListener('error',e=>{
+  try{status('Erreur interface : '+(e.message||'inconnue'));}catch(_){}
+});
 
 /* HELPERS */
 function esc(str){return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
@@ -931,9 +994,369 @@ function renderCorridorsPanel(){
   `;
 }
 
+
+/* ============================================================
+   DOC2MAP — PDF -> classification -> directives -> carte
+   Validation humaine obligatoire avant activation terrain.
+   ============================================================ */
+function saveDoc2Map(){
+  localStorage.setItem('pofino_v73_doc2map',JSON.stringify(doc2mapLibrary));
+}
+// Écouteur global robuste pour Android / aperçu intégré.
+document.addEventListener('change',function(e){
+  const input=e.target;
+  if(input && input.id==='doc2File'){
+    const file=input.files && input.files[0];
+    if(file){
+      setDoc2LiveStatus('Fichier sélectionné : '+file.name+' — démarrage…','busy');
+      processDoc2MapPdf(file).finally(()=>{ try{ input.value=''; }catch(_){} });
+    }
+  }
+});
+function docUid(){
+  return (crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+}
+function docDetectLanguage(text){
+  const s=String(text||'').toLowerCase();
+  const fr=(s.match(/\b(le|la|les|des|travaux|fermer|voie|rue|entre|avant|après|chantier)\b/g)||[]).length;
+  const en=(s.match(/\b(the|work|close|lane|street|between|before|after|road|construction)\b/g)||[]).length;
+  return en>fr?'Anglais':'Français';
+}
+function docClassify(text,name){
+  const t=(text+' '+name).toLowerCase();
+  const type=
+    /directive|instruction|consigne|work directive/.test(t)?'Directive de travaux':
+    /plan.{0,20}signal|signalisation|traffic control/.test(t)?'Plan de signalisation':
+    /devis|spécification|specification/.test(t)?'Devis / spécification':
+    /fermeture|closure/.test(t)?'Avis de fermeture':
+    /détour|detour|déviation|reroute/.test(t)?'Plan de détour':'Document chantier';
+
+  const city=(text.match(/\b(Montréal|Montreal|Laval|Terrebonne|Longueuil|Québec|Quebec|Gatineau|Brossard|Repentigny|Mascouche|Mirabel|Blainville)\b/i)||[])[1]||'';
+  const street=(text.match(/\b(?:rue|avenue|boulevard|chemin|route|autoroute)\s+[A-ZÀ-ÖØ-Ý][\wÀ-ÿ'’.-]*(?:\s+[A-ZÀ-ÖØ-Ý][\wÀ-ÿ'’.-]*){0,5}/i)||[])[0]||'';
+  const ref=(text.match(/\b(?:projet|project|contrat|dossier|réf(?:érence)?)\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/-]{3,})/i)||[])[1]||'';
+  const date=(text.match(/\b(20\d{2}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]20\d{2})\b/)||[])[1]||'';
+  return {type,city,street,ref,date,language:docDetectLanguage(text)};
+}
+function docTranslateOperational(text){
+  const rules=[
+    [/\bclose\b/gi,'fermer'],[/\bclosure\b/gi,'fermeture'],[/\blane\b/gi,'voie'],
+    [/\broad\b/gi,'route'],[/\bstreet\b/gi,'rue'],[/\bwork zone\b/gi,'zone de travaux'],
+    [/\bflagger\b/gi,'signaleur'],[/\bdetour\b/gi,'détour'],[/\bbefore\b/gi,'avant'],
+    [/\bafter\b/gi,'après'],[/\bbetween\b/gi,'entre'],[/\beastbound\b/gi,'direction est'],
+    [/\bwestbound\b/gi,'direction ouest'],[/\bnorthbound\b/gi,'direction nord'],
+    [/\bsouthbound\b/gi,'direction sud'],[/\bright lane\b/gi,'voie droite'],
+    [/\bleft lane\b/gi,'voie gauche']
+  ];
+  return rules.reduce((s,[r,v])=>s.replace(r,v),String(text||'')).slice(0,16000);
+}
+function docDetectActions(text){
+  const sentences=String(text||'').replace(/\s+/g,' ').split(/(?<=[.;:!?])\s+|\n+/).filter(s=>s.length>8);
+  const acts=[];
+  function add(type,s,confidence,meta={}){
+    const source=s.slice(0,260);
+    if(!acts.some(a=>a.type===type&&a.source===source))acts.push({id:docUid(),type,source,confidence,meta,status:'Proposé'});
+  }
+  sentences.forEach(s=>{
+    const x=s.toLowerCase();
+    if(/fermer|fermeture|close|closure/.test(x)&&/voie|rue|route|lane|road|street/.test(x))add('closed',s,.91);
+    if(/zone de travaux|work zone|chantier|excavation/.test(x))add('work',s,.85);
+    if(/signaleur|flagger/.test(x))add('flagger',s,.89,{count:+((s.match(/\b([1-9])\b/)||[])[1]||1)});
+    if(/panneau|signalisation|traffic sign|warning sign/.test(x))add('sign',s,.79);
+    if(/détour|déviation|detour|reroute/.test(x))add('detour',s,.87);
+    if(/obstacle|entrave|blocage|obstruction/.test(x))add('obstacle',s,.77);
+    if(/piéton|pedestrian|sidewalk|trottoir/.test(x)&&/détour|fermer|closure|detour/.test(x))add('pedestrian',s,.81);
+  });
+  return acts.slice(0,60);
+}
+function docConfidence(c,a){
+  let v=.43;
+  if(c.type!=='Document chantier')v+=.16;
+  if(c.city)v+=.10;if(c.street)v+=.10;if(c.ref)v+=.05;if(c.date)v+=.04;if(a.length)v+=.10;
+  return Math.min(.98,v);
+}
+function docActionLabel(type){
+  return {closed:'Fermeture',work:'Zone de travaux',flagger:'Signaleur',sign:'Signalisation',detour:'Détour',obstacle:'Obstacle',pedestrian:'Détour piéton'}[type]||type;
+}
+function setDoc2LiveStatus(msg,state=''){
+  const el=document.getElementById('doc2LiveStatus');
+  if(el){el.className='docLiveStatus '+state;el.textContent=msg;}
+  status(msg);
+}
+function waitForPdfJs(timeout=12000){
+  return new Promise(resolve=>{
+    if(window.pdfjsLib)return resolve(true);
+    const start=Date.now();
+    const timer=setInterval(()=>{
+      if(window.pdfjsLib){clearInterval(timer);resolve(true);}
+      else if(Date.now()-start>=timeout){clearInterval(timer);resolve(false);}
+    },180);
+  });
+}
+
+function localPdfTextFallback(buffer){
+  try{
+    const bytes=new Uint8Array(buffer);
+    let raw='';
+    const step=0x8000;
+    for(let i=0;i<bytes.length;i+=step){
+      raw+=String.fromCharCode(...bytes.subarray(i,Math.min(i+step,bytes.length)));
+    }
+    const out=[];
+    // Chaînes littérales PDF : (texte). Gère les échappements les plus courants.
+    const rx=/\((?:\\.|[^\\()])*\)/g;
+    let m;
+    while((m=rx.exec(raw)) && out.length<8000){
+      let t=m[0].slice(1,-1)
+        .replace(/\\n/g,'\n').replace(/\\r/g,'\n').replace(/\\t/g,' ')
+        .replace(/\\\(/g,'(').replace(/\\\)/g,')').replace(/\\\\/g,'\\');
+      if(/[A-Za-zÀ-ÿ]{2}/.test(t))out.push(t);
+    }
+    // Quelques PDF stockent du texte ASCII directement autour des opérateurs Tj/TJ.
+    const ascii=raw.match(/[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 ,.;:'’\-\/]{5,120}/g)||[];
+    ascii.slice(0,3000).forEach(x=>out.push(x));
+    return [...new Set(out)].join(' ').replace(/\s+/g,' ').trim().slice(0,300000);
+  }catch(e){return '';}
+}
+
+async function processDoc2MapPdf(file){
+  if(!file)return;
+  if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){
+    setDoc2LiveStatus('DOC2MAP : format refusé. PDF requis.','err');return;
+  }
+
+  // Crée immédiatement une fiche visible : jamais de téléversement silencieux.
+  const pendingId=docUid();
+  const pendingDoc={
+    id:pendingId,name:file.name,size:file.size,pages:0,created:new Date().toISOString(),
+    text:'',classification:{type:'Analyse en cours',city:'',street:'',ref:'',date:'',language:'À détecter'},
+    actions:[],status:'Analyse en cours',confidence:0,translation:''
+  };
+  doc2mapLibrary.unshift(pendingDoc);activeDoc2MapId=pendingId;saveDoc2Map();
+  refreshDoc2MapList();
+  setTimeout(()=>document.getElementById('doc2List')?.scrollIntoView({behavior:'smooth',block:'center'}),80);
+
+  const bar=document.querySelector('#doc2progress i');
+  if(bar)bar.style.width='6%';
+  setDoc2LiveStatus('Fichier reçu : '+file.name+' ('+Math.round(file.size/1024)+' Ko) — préparation du moteur PDF…','busy');
+
+  try{
+    const buf=await file.arrayBuffer();
+    if(bar)bar.style.width='18%';
+    let text='';
+    let pages=0;
+    let engine='extracteur local';
+
+    const ready=await waitForPdfJs(1800);
+    if(ready){
+      try{
+        setDoc2LiveStatus('Lecture PDF avancée en cours…','busy');
+        const pdf=await window.pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+        pages=pdf.numPages;
+        for(let i=1;i<=pdf.numPages;i++){
+          setDoc2LiveStatus(`Lecture page ${i}/${pdf.numPages}…`,'busy');
+          const page=await pdf.getPage(i);
+          const tc=await page.getTextContent();
+          text+=tc.items.map(x=>x.str).join(' ')+'\n';
+          if(bar)bar.style.width=(18+Math.round(i/pdf.numPages*58))+'%';
+        }
+        engine='PDF.js';
+      }catch(pdfErr){
+        console.warn('PDF.js a échoué, secours local',pdfErr);
+      }
+    }
+
+    if(!text.trim()){
+      setDoc2LiveStatus('Moteur externe indisponible ou sans texte. Analyse locale de secours…','busy');
+      text=localPdfTextFallback(buf);
+      pages=pages||0;
+      engine='extracteur local intégré';
+      if(bar)bar.style.width='78%';
+    }
+
+    const classification=docClassify(text,file.name);
+    const actions=docDetectActions(text);
+    Object.assign(pendingDoc,{
+      pages,text:text.slice(0,300000),classification,actions,engine,
+      status:text.trim()?(actions.length?'À valider':'Classé'):'PDF reçu — OCR requis',
+      confidence:docConfidence(classification,actions),translation:docTranslateOperational(text)
+    });
+    saveDoc2Map();refreshDoc2MapList();
+    if(bar)bar.style.width='100%';
+
+    if(!text.trim()){
+      setDoc2LiveStatus('PDF reçu et conservé. Aucun texte exploitable détecté : OCR requis pour ce scan.','err');
+    }else{
+      setDoc2LiveStatus(`Analyse terminée avec ${engine} : ${actions.length} action(s) détectée(s)${pages?`, ${pages} page(s)`:''}.`,'ok');
+    }
+    logAction('DOC2MAP PDF analysé : '+file.name);
+    renderPanel();
+    setTimeout(()=>openDoc2Map(pendingId),180);
+  }catch(e){
+    console.error(e);
+    pendingDoc.status='Erreur d’analyse';
+    pendingDoc.classification.type='PDF reçu — analyse impossible';
+    pendingDoc.text='Erreur : '+(e?.message||String(e));
+    saveDoc2Map();refreshDoc2MapList();
+    if(bar)bar.style.width='0%';
+    setDoc2LiveStatus('Le fichier a bien été reçu, mais son analyse a échoué : '+(e?.message||'erreur inconnue')+'. La fiche reste dans la bibliothèque.','err');
+    logAction('DOC2MAP erreur analyse : '+file.name);
+  }
+}
+function renderDoc2MapPanel(){
+  return `
+    <div class="card">
+      <h3>POFINO DOC2MAP</h3>
+      <p class="small">PDF → lecture → classement → traduction opérationnelle → directives détectées → propositions sur la carte → validation humaine.</p>
+      <div class="docDrop" id="docDrop">
+        <strong>Déposer une fiche PDF</strong>
+        <span class="small">Directive · plan · devis · fermeture · détour · fiche chantier</span><br><br>
+        <input id="doc2File" class="docNativeFile" type="file" accept="application/pdf,.pdf">
+        <div class="small" style="margin-top:8px">Sur mobile : touche directement « Choisir un fichier » ci-dessus.</div>
+      </div>
+      <div class="docProgress" id="doc2progress"><i></i></div>
+      <div id="doc2LiveStatus" class="docLiveStatus">Prêt. Choisis un PDF pour démarrer l’analyse.</div>
+      <div class="warning" style="margin-top:10px">Les propositions DOC2MAP ne deviennent jamais des décisions terrain automatiquement. Validation humaine obligatoire.</div>
+    </div>
+    <div class="card">
+      <h3>Bibliothèque intelligente</h3>
+      <input class="field" id="doc2Filter" placeholder="Filtrer projet, ville, type, rue…" oninput="refreshDoc2MapList()">
+      <div id="doc2List">${renderDoc2MapListHtml('')}</div>
+    </div>
+    <div class="card">
+      <h3>Propositions carte en attente</h3>
+      <span class="badge orange">${(Array.isArray(doc2mapLibrary)?doc2mapLibrary:[]).reduce((n,d)=>n+((Array.isArray(d.actions)?d.actions:[]).filter(a=>a.status==='Sur la carte').length),0)}</span>
+      <span class="small"> action(s) DOC2MAP positionnée(s) pour révision.</span>
+    </div>`;
+}
+function renderDoc2MapListHtml(q=''){
+  const query=String(q||'').toLowerCase();
+  const docs=(Array.isArray(doc2mapLibrary)?doc2mapLibrary:[]).filter(d=>JSON.stringify(d).toLowerCase().includes(query));
+  if(!docs.length)return '<p class="small">Aucun document DOC2MAP.</p>';
+  return docs.map(d=>`
+    <div class="docItem" onclick="openDoc2Map('${d.id}')">
+      <div class="docHead"><b>${esc(d.name)}</b><span class="badge ${d.status==='Validé'?'green':'orange'}">${esc(d.status)}</span></div>
+      <div class="small">${esc(d.classification.type)} · ${esc(d.classification.city||'Ville non détectée')} · ${d.pages} page(s)</div>
+      <span class="badge blue">${d.actions.length} actions</span>
+      <span class="badge purple">${Math.round(d.confidence*100)}% confiance</span>
+    </div>`).join('');
+}
+function refreshDoc2MapList(){
+  const el=document.getElementById('doc2List');if(!el)return;
+  el.innerHTML=renderDoc2MapListHtml(document.getElementById('doc2Filter')?.value||'');
+}
+function openDoc2Map(id){
+  const d=doc2mapLibrary.find(x=>x.id===id);if(!d)return;
+  activeDoc2MapId=id;
+  const box=document.getElementById('docModalContent');
+  box.innerHTML=`
+    <div class="docRow">
+      <div class="docGrow"><h2 style="color:var(--orange)">${esc(d.name)}</h2><div class="small">${esc(d.classification.type)} · ${esc(d.classification.language)} · ${d.pages} pages</div></div>
+      <button class="darkBtn" onclick="closeDoc2Map()">✕</button>
+    </div>
+    <div class="metricGrid" style="margin-top:12px">
+      <div class="metric"><b>${Math.round(d.confidence*100)}%</b><span>confiance globale</span></div>
+      <div class="metric"><b>${d.actions.length}</b><span>actions détectées</span></div>
+    </div>
+    <div class="card">
+      <h3>Classification</h3>
+      <span class="badge orange">${esc(d.classification.type)}</span>
+      <span class="badge blue">${esc(d.classification.city||'Ville ?')}</span>
+      <span class="badge purple">${esc(d.classification.street||'Rue ?')}</span>
+      <p class="small">Référence : ${esc(d.classification.ref||'non détectée')} · Date : ${esc(d.classification.date||'non détectée')}</p>
+      <div class="grid2">
+        <button onclick="applyDoc2MapToChantier('${d.id}')">Remplir fiche chantier</button>
+        <button class="blueBtn" onclick="locateDoc2Map('${d.id}')">Localiser secteur</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Directives opérationnelles</h3>
+      ${d.actions.length?d.actions.map((a,i)=>`
+        <div class="docAction">
+          <div class="docHead"><b>${esc(docActionLabel(a.type))}</b><span class="badge ${a.confidence>.85?'green':'yellow'}">${Math.round(a.confidence*100)}%</span></div>
+          <div class="small">${esc(a.source)}</div>
+          <div class="docRow" style="margin-top:8px">
+            <button class="blueBtn" onclick="locateDocAction('${d.id}',${i})">Localiser</button>
+            <button onclick="proposeDocAction('${d.id}',${i})">Proposer sur map</button>
+          </div>
+        </div>`).join(''):'<p class="small">Aucune directive cartographique détectée.</p>'}
+    </div>
+    <div class="card"><h3>Traduction opérationnelle</h3><div class="docPreview">${esc(d.translation.slice(0,7000))}</div></div>
+    <div class="card"><h3>Texte extrait</h3><div class="docPreview">${esc(d.text.slice(0,7000))}</div></div>
+    <div class="docRow">
+      <button class="greenBtn" onclick="validateDoc2Map('${d.id}')">Valider document</button>
+      <button class="redBtn" onclick="deleteDoc2Map('${d.id}')">Supprimer</button>
+    </div>`;
+  document.getElementById('docModal').classList.remove('hidden');
+}
+function closeDoc2Map(){document.getElementById('docModal').classList.add('hidden');}
+async function locateDoc2Map(id){
+  const d=doc2mapLibrary.find(x=>x.id===id);if(!d)return;
+  const q=[d.classification.street,d.classification.city].filter(Boolean).join(', ');
+  if(!q){status('DOC2MAP : aucune rue/ville suffisamment précise détectée.');return;}
+  document.getElementById('streetSearch').value=q;
+  await searchStreet();
+  closeDoc2Map();
+}
+async function locateDocAction(id,index){
+  await locateDoc2Map(id);
+  status('DOC2MAP : secteur proposé. Vérifie la position avant application.');
+}
+function applyDoc2MapToChantier(id){
+  const d=doc2mapLibrary.find(x=>x.id===id);if(!d)return;
+  selectedStreet=d.classification.street||selectedStreet;
+  if(d.classification.street)document.getElementById('streetSearch').value=d.classification.street;
+  closeDoc2Map();
+  activeTab='chantier';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='chantier'));
+  renderPanel();
+  setTimeout(()=>{
+    if(document.getElementById('fProject'))document.getElementById('fProject').value=d.classification.ref?('Projet '+d.classification.ref):d.classification.type;
+    if(document.getElementById('fStreet'))document.getElementById('fStreet').value=d.classification.street||'';
+    if(document.getElementById('fDate')&&d.classification.date){
+      const raw=d.classification.date.replaceAll('/','-');
+      if(/^\d{4}-/.test(raw))document.getElementById('fDate').value=raw;
+    }
+    if(document.getElementById('fNote'))document.getElementById('fNote').value='Source DOC2MAP : '+d.name+'\n'+d.actions.map(a=>'• '+docActionLabel(a.type)+' — '+a.source).join('\n');
+  },0);
+  status('DOC2MAP : fiche chantier préremplie depuis le document.');
+  logAction('DOC2MAP -> fiche chantier : '+d.name);
+}
+function proposeDocAction(id,index){
+  const d=doc2mapLibrary.find(x=>x.id===id),a=d?.actions[index];if(!a)return;
+  const c=map.getCenter(),offset=(Math.random()-.5)*.0011;
+  const lat=c.lat+offset,lng=c.lng-offset;
+  const label='PROPOSITION '+docActionLabel(a.type).toUpperCase();
+  const colors={closed:'#d40000',work:'#ff6600',flagger:'#ff6600',sign:'#ffd400',detour:'#ffd400',obstacle:'#7b3ff2',pedestrian:'#008a43'};
+  const marker=addMarker({lat,lng},label,colors[a.type]||'#ff6600',false);
+  marker.bindPopup('<b>'+esc(label)+'</b><br>Source : '+esc(d.name)+'<br><b>Non validé</b>');
+  marker.setOpacity(.78);
+  doc2mapProposalLayers.push(marker);
+  a.status='Sur la carte';
+  a.proposal={lat,lng,label,validated:false};
+  saveDoc2Map();
+  map.setView([lat,lng],17);
+  status('DOC2MAP : proposition ajoutée. Validation humaine requise.');
+  logAction('DOC2MAP proposition carte : '+docActionLabel(a.type));
+  openDoc2Map(id);
+}
+function validateDoc2Map(id){
+  const d=doc2mapLibrary.find(x=>x.id===id);if(!d)return;
+  d.status='Validé';
+  d.actions.forEach(a=>{if(a.status==='Proposé')a.status='Validé documentaire';});
+  saveDoc2Map();logAction('DOC2MAP document validé : '+d.name);
+  status('DOC2MAP : document validé. Les positions cartographiques doivent encore être vérifiées.');
+  closeDoc2Map();renderPanel();
+}
+function deleteDoc2Map(id){
+  if(!confirm('Supprimer ce document DOC2MAP de la bibliothèque locale ?'))return;
+  doc2mapLibrary=doc2mapLibrary.filter(x=>x.id!==id);saveDoc2Map();
+  closeDoc2Map();renderPanel();logAction('DOC2MAP document supprimé');
+}
+
 /* PANEL RENDERERS */
 function showTab(tab,el){
   activeTab=tab;
+  const contentEl=document.getElementById('content');if(contentEl)contentEl.scrollTop=0;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   if(el)el.classList.add('active');
   renderPanel();
@@ -1053,6 +1476,33 @@ function renderPanel(){
         ${getRecommendations().map(r=>`<div class="warning">${esc(r)}</div>`).join('')}
         <button onclick="setMode('closed')" style="margin-top:5px">Placer fermeture + suggestion IA</button>
       </div>`;
+  }
+
+
+  if(activeTab==='doc2map'){
+    try{
+      c.innerHTML=renderDoc2MapPanel();
+    }catch(err){
+      console.error('DOC2MAP render error',err);
+      c.innerHTML=`
+        <div class="card">
+          <h3>POFINO DOC2MAP</h3>
+          <p class="small">Le module est actif. Charge un PDF pour commencer.</p>
+          <label class="fileInputLabel">
+            Choisir un PDF
+            <input id="doc2File" class="docNativeFile" type="file" accept="application/pdf,.pdf">
+          </label>
+          <div class="warning" style="margin-top:10px">Mode de secours activé : l’interface principale DOC2MAP a rencontré une erreur locale.</div>
+        </div>`;
+    }
+    setTimeout(()=>{
+      const drop=document.getElementById('docDrop');
+      if(drop){
+        ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+        ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+        drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)processDoc2MapPdf(f);});
+      }
+    },0);
   }
 
   if(activeTab==='inventaire'){
@@ -1264,7 +1714,7 @@ function generatePdf(item){
   doc.setTextColor(20,20,20);
   doc.setFontSize(17);
   doc.setFont(undefined,'bold');
-  doc.text('POFINO V7.1 — Rapport pilote chantier',14,16);
+  doc.text('POFINO V7.3 — Rapport pilote chantier',14,16);
 
   doc.setTextColor(0,0,0);
   doc.setFontSize(10);
