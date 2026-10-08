@@ -1702,8 +1702,10 @@ function updateNavigation(){
  });
  const items=navigationGroups[activeGroup]?.tabs||[];
  sub.innerHTML=items.length>1?items.map(([id,title])=>
-   '<button type="button" class="'+(id===activeTab?'active':'')+'" onclick="showTab(\\''+id+'\\')">'+esc(title)+'</button>'
+   '<button type="button" class="'+(id===activeTab?'active':'')+'" data-nav-tab="'+id+'">'+esc(title)+'</button>'
  ).join(''):'';
+ sub.querySelectorAll('[data-nav-tab]').forEach(btn=>btn.addEventListener('click',()=>showTab(btn.dataset.navTab)));
+
 }
 function showGroup(group){
  const config=navigationGroups[group];if(!config)return;
