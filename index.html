@@ -1681,6 +1681,17 @@ function deleteDoc2Map(id){
 }
 
 /* PANEL RENDERERS */
+function renderWorkSchedule(kind){
+ const entries=inventory.slice().filter(item=>item&&item.date).sort((a,b)=>(a.date+' '+(a.time||'')).localeCompare(b.date+' '+(b.time||'')));
+ const list=kind==='teams'?entries.filter(item=>item.team):entries;
+ return '<div class="card"><h3>'+(kind==='teams'?'Affectations des équipes':'Calendrier des travaux')+'</h3>'+
+ '<p class="small">Dossiers enregistrés sur cet appareil. Les équipes ne sont pas synchronisées entre appareils.</p>'+
+ (list.length?list.slice(0,30).map(item=>'<div class="listItem"><b>'+esc(item.date)+' '+esc(item.time||'')+' — '+esc(item.project||'Chantier')+'</b>'+
+ '<small>'+esc(item.street||'Rue à préciser')+' · '+esc(item.status||'À préparer')+
+ '<br>Équipe : '+esc(item.team||'Non affectée')+' · Effectif : '+esc(item.staffCount||'à préciser')+
+ (item.endTime?' · Fin prévue : '+esc(item.endTime):'')+'</small></div>').join(''):
+ '<p class="small">Aucun chantier planifié et sauvegardé.</p>')+'</div>';
+}
 const navigationGroups={
   overview:{label:'Accueil',tabs:[['dashboard','Vue d’ensemble']]},
   operations:{label:'Chantiers',tabs:[['chantier','Préparer'],['inventaire','Chantiers sauvegardés']]},
@@ -1766,7 +1777,7 @@ function renderPanel(){
   }
 
   if(activeTab==='chantier'){
-    c.innerHTML=`
+    c.innerHTML=renderWorkSchedule('planning')+`
       <div class="card">
         <h3>Fiche chantier actif</h3>
         <input class="field" id="fRef" value="${generateRef()}" readonly>
@@ -1776,6 +1787,10 @@ function renderPanel(){
         <div class="grid2">
           <input class="field" id="fDate" type="date" value="${today}">
           <input class="field" id="fTime" type="time" value="08:00">
+        </div>
+        <div class="grid2">
+          <input class="field" id="fEndTime" type="time" value="17:00" title="Heure de fin prévue">
+          <input class="field" id="fStaffCount" type="number" min="1" max="100" value="2" placeholder="Nombre d’employés" title="Nombre d’employés prévus">
         </div>
         <div class="grid2">
           <select class="field" id="fType">
@@ -1881,7 +1896,7 @@ function renderPanel(){
   }
 
   if(activeTab==='terrain'){
-    c.innerHTML=`
+    c.innerHTML=renderWorkSchedule('teams')+`
       <div class="card">
         <h3>Validation terrain mobile</h3>
         <p class="small">Checklist courte pour installation, photos, QR, sécurité et retrait.</p>
@@ -2009,6 +2024,8 @@ function collectChantier(){
     street:get('fStreet')||selectedStreet||'Rue à préciser',
     date:get('fDate')||today,
     time:get('fTime')||'08:00',
+    endTime:get('fEndTime')||'',
+    staffCount:get('fStaffCount')||'',
     type:get('fType')||'Travaux',
     phase:get('fPhase')||'Phase 1',
     status:get('fStatus')||'À préparer',
