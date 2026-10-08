@@ -778,20 +778,79 @@ function addMarker(latlng,label,color,save=true){
   }
   return marker;
 }
-function createSuggestion(latlng){
+/* Calcul de détour sur le réseau via OSRM. Service public : démonstration uniquement.
+   Aucun détour fictif n'est dessiné si le calcul ou l'évitement échoue. */
+let routingGeneration=0;
+function metersBetween(a,b){
+  const toRad=x=>x*Math.PI/180, dLat=toRad(b[0]-a[0]),dLng=toRad(b[1]-a[1]);
+  const h=Math.sin(dLat/2)**2+Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.sin(dLng/2)**2;
+  return 12742000*Math.asin(Math.min(1,Math.sqrt(h)));
+}
+function distanceToSegmentMeters(p,a,b){
+  const latFactor=111195, lngFactor=latFactor*Math.cos(p[0]*Math.PI/180);
+  const x=(p[1]-a[1])*lngFactor,y=(p[0]-a[0])*latFactor;
+  const dx=(b[1]-a[1])*lngFactor,dy=(b[0]-a[0])*latFactor;
+  const t=Math.max(0,Math.min(1,(x*dx+y*dy)/(dx*dx+dy*dy||1)));
+  return Math.hypot(x-t*dx,y-t*dy);
+}
+function minDistanceToPath(p,points){
+  let best=Infinity;
+  for(let i=1;i<points.length;i++)best=Math.min(best,distanceToSegmentMeters(p,points[i-1],points[i]));
+  return best;
+}
+async function osrmTrip(waypoints,signal){
+  const coords=waypoints.map(p=>p[1]+','+p[0]).join(';');
+  const url='https://router.project-osrm.org/route/v1/driving/'+coords+'?overview=full&geometries=geojson&steps=false';
+  const response=await fetch(url,{signal,headers:{Accept:'application/json'}});
+  if(!response.ok)throw new Error('Service routier HTTP '+response.status);
+  const data=await response.json();
+  if(data.code!=='Ok'||!data.routes?.length)throw new Error('Aucun trajet routier trouvé');
+  const route=data.routes[0];
+  return {points:route.geometry.coordinates.map(c=>[c[1],c[0]]),distance:route.distance};
+}
+async function createSuggestion(latlng){
+  const generation=++routingGeneration;
+  const center=[latlng.lat,latlng.lng];
   addMarker(latlng,'FERMÉ','#d40000',true);
-  const lat=latlng.lat, lng=latlng.lng;
-  const points=[[lat-.0042,lng-.0062],[lat-.0042,lng+.0062],[lat+.0042,lng+.0062],[lat+.0042,lng-.0062]];
-  const line=L.polyline(points,{color:'#ffd400',weight:6,opacity:.9,dashArray:'10,8'}).addTo(map);
-  line.bindPopup('<b>Suggestion SignalIA</b><br>Détour préliminaire à valider.');
-  routeLayers.push(line);
-  mapLayers.push(line);
-  currentRoutes.push({points,color:'#ffd400',auto:true,label:'Suggestion SignalIA — détour à valider'});
-  addMarker(points[0],'DÉBUT','#ffd400',true);
-  addMarker(points[points.length-1],'FIN','#ffd400',true);
-  status('SignalIA a proposé un détour préliminaire. Validation humaine obligatoire.');
-  logAction('Suggestion SignalIA générée');
-  renderPanel();
+  status('Recherche de détours suivant les rues en cours…');
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),18000);
+  try{
+    // Les extrémités encadrent la fermeture; variantes via deux rues latérales.
+    const lat=latlng.lat,lng=latlng.lng;
+    const latRadius=.0045,lngRadius=.0055;
+    const start=[lat-latRadius,lng-lngRadius],end=[lat+latRadius,lng+lngRadius];
+    const viaOptions=[
+      [[lat-latRadius,lng+lngRadius*1.5]],
+      [[lat+latRadius,lng-lngRadius*1.5]],
+      [[lat-latRadius*1.5,lng+lngRadius*1.5],[lat+latRadius*1.5,lng+lngRadius*1.5]],
+      [[lat-latRadius*1.5,lng-lngRadius*1.5],[lat+latRadius*1.5,lng-lngRadius*1.5]]
+    ];
+    const candidates=await Promise.allSettled(viaOptions.map(via=>osrmTrip([start,...via,end],controller.signal)));
+    if(generation!==routingGeneration)return;
+    // Seules les propositions qui ne traversent pas la zone de fermeture sont gardées.
+    const safe=candidates.filter(x=>x.status==='fulfilled').map(x=>x.value)
+      .filter(r=>r.points.length>2&&minDistanceToPath(center,r.points)>=90)
+      .sort((a,b)=>a.distance-b.distance);
+    if(!safe.length)throw new Error('Aucun détour évitant la zone fermée n’a été trouvé');
+    const best=safe[0];
+    const line=L.polyline(best.points,{color:'#ffd400',weight:6,opacity:.92,dashArray:'10,8'}).addTo(map);
+    line.bindPopup('<b>Détour routier proposé</b><br>Calcul selon réseau routier, non approuvé.<br>Vérifier sens uniques, accès chantier et signalisation.');
+    routeLayers.push(line);mapLayers.push(line);
+    currentRoutes.push({points:best.points,color:'#ffd400',auto:true,verified:false,
+      label:'SignalIA — itinéraire routier à valider',distanceMeters:Math.round(best.distance)});
+    map.fitBounds(line.getBounds(),{padding:[65,65],maxZoom:16});
+    status('Détour calculé sur rues ('+Math.round(best.distance)+' m). Validation terrain obligatoire.');
+    logAction('Détour OSRM proposé — '+Math.round(best.distance)+' m');
+  }catch(error){
+    if(generation!==routingGeneration)return;
+    const message=error.name==='AbortError'?'délai dépassé':error.message;
+    status('Aucun tracé automatique fiable : '+message+'. La fermeture est conservée. Utilise TRAC pour un tracé manuel.');
+    logAction('Échec calcul détour : '+message);
+  }finally{
+    clearTimeout(timeout);
+    if(generation===routingGeneration)renderPanel();
+  }
 }
 
 map.on('click',e=>{
@@ -1821,6 +1880,7 @@ function importJson(event){
 
 /* CLEAR */
 function clearVisualMap(reset=true){
+  routingGeneration++;
   mapLayers.forEach(l=>{try{map.removeLayer(l)}catch(e){}});
   mapLayers=[]; markerLayers=[]; routeLayers=[];
   if(routeLine)try{map.removeLayer(routeLine)}catch(e){}
