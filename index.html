@@ -309,6 +309,53 @@ textarea.field{resize:vertical;}
   .results{left:10px;right:10px;top:76px;}
 }
 
+
+/* Responsive layout safety: navigation and map controls must not collide */
+.drawer{min-width:0}
+.drawer .content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.pofNav{flex:none;min-width:0}
+.pofNav button{min-width:0;overflow-wrap:anywhere;line-height:1.2}
+.pofSubnav{flex:none;min-width:0;scrollbar-width:thin}
+.searchBox{min-width:0}
+.searchBox input{min-width:0}
+@media(min-width:901px) and (max-width:1250px){
+ .topbar{grid-template-columns:165px minmax(0,1fr) auto}
+ .brand b{font-size:16px}
+ .topActions button{padding:10px 7px;font-size:11px}
+ .quickRoads{right:410px}
+}
+@media(max-width:900px){
+ .topbar{top:8px;left:8px;right:8px;grid-template-columns:minmax(0,1fr);height:auto}
+ .searchBox{grid-column:1;min-height:55px}
+ .searchBox input{width:0;font-size:14px}
+ .searchBox button{flex:none;padding:9px 11px}
+ .mapTools{top:77px;left:8px;right:8px;display:flex;flex-direction:row;gap:5px;padding:5px;max-width:calc(100vw - 16px);overflow-x:auto;overflow-y:hidden;border-radius:14px}
+ .mapTools .tool{width:45px;min-width:45px;height:45px;flex:none;font-size:19px;border-radius:10px}
+ .drawer{top:145px;left:8px;right:8px;bottom:66px;width:auto;height:auto;max-height:none;transform:none;border-radius:16px}
+ .drawer.collapsed{transform:translateX(calc(100% + 18px))}
+ .drawerHandle{top:143px;right:10px;bottom:auto;transform:none}
+ .drawerHandle button{width:40px;height:40px;border-radius:11px}
+ .drawer.collapsed + .drawerHandle{transform:none}
+ .pofNav{grid-template-columns:repeat(3,minmax(0,1fr));padding:7px 46px 5px 7px;gap:4px}
+ .pofNav button{font-size:11px;min-height:38px;padding:7px 3px}
+ .pofSubnav{padding:5px 8px 7px}
+ .pofSubnav button{flex:none}
+ .content{padding:10px}
+ .quickRoads{left:8px;right:8px;bottom:7px;max-width:calc(100vw - 16px);padding:6px;z-index:9997}
+ .results{top:75px;left:8px;right:8px}
+}
+@media(max-width:390px){
+ .pofNav button{font-size:10px}
+ .drawer{top:141px}
+ .drawerHandle{top:139px}
+ .mapTools .tool{width:41px;min-width:41px}
+}
+@media(max-height:600px) and (max-width:900px){
+ .drawer{top:137px;bottom:53px}
+ .drawerHandle{top:135px}
+ .quickRoads{bottom:4px}
+}
+
 /* DOC2MAP */
 .docDrop{
   border:2px dashed rgba(255,102,0,.8);border-radius:18px;padding:22px 14px;text-align:center;
