@@ -797,7 +797,31 @@ const quebecSigns=[
   {cat:'Chantier',name:'Fin des travaux',desc:'Sortie de zone chantier.',icon:'FIN',type:'rect',label:'FIN TRAVAUX',color:'#ff6600'},
   {cat:'Piéton',name:'Détour piéton',desc:'Chemin alternatif piétons.',icon:'🚶↪',type:'green',label:'DÉTOUR PIÉTON',color:'#008a43'},
   {cat:'Piéton',name:'Passage sécurisé',desc:'Traversée temporaire.',icon:'🚶',type:'green',label:'PASSAGE PIÉTON',color:'#008a43'},
-  {cat:'Piéton',name:'Barrière piétonne',desc:'Protection zone piétonne.',icon:'▥',type:'green',label:'BARRIÈRE PIÉTON',color:'#008a43'}
+  {cat:'Piéton',name:'Barrière piétonne',desc:'Protection zone piétonne.',icon:'▥',type:'green',label:'BARRIÈRE PIÉTON',color:'#008a43'},
+  {cat:'Danger',name:'Travaux à 100 m',desc:'Préavis de zone de travaux, distance illustrative.',icon:'100 m',type:'diamond',label:'TRAVAUX 100 M',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Travaux à 200 m',desc:'Préavis de zone de travaux, distance illustrative.',icon:'200 m',type:'diamond',label:'TRAVAUX 200 M',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Travaux à 500 m',desc:'Préavis de zone de travaux, distance illustrative.',icon:'500 m',type:'diamond',label:'TRAVAUX 500 M',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Signaleur en approche',desc:'Annonce de présence d\'un signaleur routier.',icon:'🚩',type:'diamond',label:'SIGNALEUR APPROCHE',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Camion entrant ou sortant',desc:'Passage possible de véhicules de chantier.',icon:'🚚',type:'diamond',label:'CAMIONS',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Accotement fermé',desc:'Accotement temporairement indisponible.',icon:'↘',type:'diamond',label:'ACCOTEMENT FERMÉ',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Chaussée inégale',desc:'Irrégularité temporaire de chaussée.',icon:'≈',type:'diamond',label:'CHAUSSÉE INÉGALE',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Gravier sur la chaussée',desc:'Surface temporairement couverte de gravier.',icon:'⋰',type:'diamond',label:'GRAVIER',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Déviation de voies à gauche',desc:'Modification temporaire du cheminement des voies.',icon:'⇖',type:'diamond',label:'DÉVIATION GAUCHE',color:'#ff6600',provisional:true},
+  {cat:'Danger',name:'Déviation de voies à droite',desc:'Modification temporaire du cheminement des voies.',icon:'⇗',type:'diamond',label:'DÉVIATION DROITE',color:'#ff6600',provisional:true},
+  {cat:'Interdiction',name:'Limite 40',desc:'Limite temporaire proposée, à autoriser.',icon:'40',type:'circle',label:'MAX 40',color:'#d40000',provisional:true},
+  {cat:'Interdiction',name:'Limite 70',desc:'Limite temporaire proposée, à autoriser.',icon:'70',type:'circle',label:'MAX 70',color:'#d40000',provisional:true},
+  {cat:'Direction',name:'Détour tout droit',desc:'Indication de poursuite du détour.',icon:'↑',type:'rectYellow',label:'DÉTOUR ↑',color:'#ffd400',provisional:true},
+  {cat:'Direction',name:'Début du détour',desc:'Début de l\'itinéraire temporaire.',icon:'DÉBUT',type:'rectYellow',label:'DÉBUT DÉTOUR',color:'#ffd400',provisional:true},
+  {cat:'Direction',name:'Rue fermée circulation locale',desc:'Accès restreint, sous réserve des autorisations.',icon:'LOCAL',type:'rectYellow',label:'CIRCULATION LOCALE',color:'#ffd400',provisional:true},
+  {cat:'Direction',name:'Détour camions',desc:'Itinéraire temporaire pour véhicules lourds.',icon:'🚚 ↪',type:'rectYellow',label:'DÉTOUR CAMIONS',color:'#ffd400',provisional:true},
+  {cat:'Direction',name:'Détour cyclistes',desc:'Itinéraire temporaire pour cyclistes.',icon:'🚲 ↪',type:'green',label:'DÉTOUR CYCLISTES',color:'#008a43',provisional:true},
+  {cat:'Direction',name:'Accès commerces',desc:'Orientation vers les commerces accessibles.',icon:'COMM.',type:'green',label:'ACCÈS COMMERCES',color:'#008a43',provisional:true},
+  {cat:'Chantier',name:'Panneau à messages variables',desc:'Dispositif électronique d\'information.',icon:'PMV',type:'rect',label:'PMV',color:'#ff6600',provisional:true},
+  {cat:'Chantier',name:'Feu temporaire',desc:'Feu de circulation temporaire de chantier.',icon:'🚦',type:'rect',label:'FEU TEMPORAIRE',color:'#ff6600',provisional:true},
+  {cat:'Chantier',name:'Balise de déviation',desc:'Dispositif de canalisation temporaire.',icon:'↗',type:'rect',label:'BALISE',color:'#ff6600',provisional:true},
+  {cat:'Chantier',name:'Remorque amortisseur',desc:'Dispositif de protection mobile.',icon:'▰',type:'rect',label:'AMORTISSEUR',color:'#ff6600',provisional:true},
+  {cat:'Piéton',name:'Passage piéton fermé',desc:'Traverse piétonne inaccessible.',icon:'🚶✕',type:'green',label:'PASSAGE FERMÉ',color:'#008a43',provisional:true},
+  {cat:'Piéton',name:'Trottoir fermé',desc:'Fermeture temporaire du trottoir.',icon:'🚶⛔',type:'green',label:'TROTTOIR FERMÉ',color:'#008a43',provisional:true}
 ];
 
 const simulatedAssets=[
@@ -1967,13 +1991,13 @@ function renderSignalPanel(){
   const grid=list.map(s=>`
     <div class="signCard" onclick="addQuebecSign('${s.name.replace(/'/g,"\\'")}')">
       <div class="signIcon">${signVisual(s)}</div>
-      <div class="signName">${esc(s.name)}</div>
+      <div class="signName">${esc(s.name)}</div>${s.provisional?'<span class="badge yellow">Illustration provisoire</span>':''}
       <div class="signDesc">${esc(s.cat)}<br>${esc(s.desc)}</div>
     </div>`).join('');
   return `
     <div class="card">
-      <h3>Pancartes de signalisation</h3>
-      <p class="small">Clique une pancarte pour l’ajouter sur la carte. Les marqueurs sont déplaçables.</p>
+      <h3>Pancartes et dispositifs — ${quebecSigns.length} références de travail</h3>
+      <p class="small">Catalogue de planification, non une reproduction certifiée du MTMD. Vérifier le Tome V avant installation. <a href="https://www.rsr.transports.gouv.qc.ca/Dispositifs/Accueil.aspx" target="_blank" rel="noopener noreferrer" style="color:#ffd400">Répertoire officiel des dispositifs</a>.</p>
       <div class="signCategoryGrid">${cats}</div>
       <div class="signGrid">${grid}</div>
     </div>
