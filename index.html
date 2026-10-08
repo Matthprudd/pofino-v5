@@ -778,20 +778,62 @@ function addMarker(latlng,label,color,save=true){
   }
   return marker;
 }
-function createSuggestion(latlng){
-  addMarker(latlng,'FERMÉ','#d40000',true);
-  const lat=latlng.lat, lng=latlng.lng;
-  const points=[[lat-.0042,lng-.0062],[lat-.0042,lng+.0062],[lat+.0042,lng+.0062],[lat+.0042,lng-.0062]];
-  const line=L.polyline(points,{color:'#ffd400',weight:6,opacity:.9,dashArray:'10,8'}).addTo(map);
-  line.bindPopup('<b>Suggestion SignalIA</b><br>Détour préliminaire à valider.');
-  routeLayers.push(line);
-  mapLayers.push(line);
-  currentRoutes.push({points,color:'#ffd400',auto:true,label:'Suggestion SignalIA — détour à valider'});
-  addMarker(points[0],'DÉBUT','#ffd400',true);
-  addMarker(points[points.length-1],'FIN','#ffd400',true);
-  status('SignalIA a proposé un détour préliminaire. Validation humaine obligatoire.');
-  logAction('Suggestion SignalIA générée');
+// POFINO V7.1.3: simulation de proposition routière; pas une approbation MTMD.
+let fermetureDebut=null, detourEnCours=false, marqueurDebut=null;
+function distanceMetres(a,b){
+ const lat=(a[0]+b[0])*Math.PI/360;
+ return Math.hypot((a[1]-b[1])*111320*Math.cos(lat),(a[0]-b[0])*111320);
+}
+function procheFermeture(route,a,b){
+ const min=[a[0]+(b[0]-a[0])*.2,a[1]+(b[1]-a[1])*.2];
+ const max=[a[0]+(b[0]-a[0])*.8,a[1]+(b[1]-a[1])*.8];
+ const distPointSegment=(p,x,y)=>{
+  const k=111320*Math.cos(p[0]*Math.PI/180),ax=(x[1]-p[1])*k,ay=(x[0]-p[0])*111320,bx=(y[1]-p[1])*k,by=(y[0]-p[0])*111320;
+  const t=Math.max(0,Math.min(1,-(ax*(bx-ax)+ay*(by-ay))/((bx-ax)**2+(by-ay)**2||1)));
+  return Math.hypot(ax+t*(bx-ax),ay+t*(by-ay));
+ };
+ for(let i=1;i<route.length;i++){
+  const len=distanceMetres(route[i-1],route[i]),steps=Math.max(1,Math.ceil(len/10));
+  for(let j=0;j<=steps;j++){
+   const t=j/steps,p=[route[i-1][0]*(1-t)+route[i][0]*t,route[i-1][1]*(1-t)+route[i][1]*t];
+   if(distPointSegment(p,min,max)<12)return true;
+  }
+ }
+ return false;
+}
+async function createSuggestion(latlng){
+ if(detourEnCours){status('Calcul routier en cours...');return;}
+ const p=[latlng.lat,latlng.lng];
+ if(!fermetureDebut){
+  fermetureDebut=p;
+  marqueurDebut=L.circleMarker(p,{radius:8,color:'#d40000',fillColor:'#ffd400',fillOpacity:1}).addTo(map);
+  status('Début du segment fermé choisi. Clique sur sa FIN pour calculer un détour sur les rues.');
+  return;
+ }
+ const a=fermetureDebut,b=p;fermetureDebut=null;
+ if(marqueurDebut){map.removeLayer(marqueurDebut);marqueurDebut=null;}
+ if(distanceMetres(a,b)<30){status('Segment trop court : choisis deux points distants de plus de 30 mètres.');return;}
+ detourEnCours=true;status('Recherche d’un détour sur le réseau OpenStreetMap...');
+ try{
+  const url='https://router.project-osrm.org/route/v1/driving/'+a[1]+','+a[0]+';'+b[1]+','+b[0]+'?alternatives=true&overview=full&geometries=geojson';
+  const res=await fetch(url);
+  if(!res.ok)throw Error('Moteur de routage indisponible ('+res.status+')');
+  const json=await res.json();
+  if(json.code!=='Ok'||!Array.isArray(json.routes))throw Error('Aucune route routière renvoyée');
+  const propositions=json.routes.map(r=>({distance:r.distance,points:(r.geometry?.coordinates||[]).map(c=>[c[1],c[0]])}))
+    .filter(r=>r.points.length>1&&!procheFermeture(r.points,a,b)).sort((x,y)=>x.distance-y.distance);
+  if(!propositions.length){status('Aucun détour alternatif admissible trouvé. Aucun tracé artificiel généré.');return;}
+  const route=propositions[0];
+  const layer=L.polyline(route.points,{color:'#ffd400',weight:7,opacity:.95,dashArray:'10,7'}).addTo(map);
+  layer.bindPopup('SignalIA : proposition OSRM à valider (fermeture non intégrée au moteur routier).');
+  routeLayers.push(layer);mapLayers.push(layer);
+  currentRoutes.push({points:route.points,color:'#ffd400',auto:true,label:'Proposition OSRM — à valider',distanceMeters:Math.round(route.distance),validated:false});
+  addMarker(a,'DÉBUT FERMETURE','#d40000',true);addMarker(b,'FIN FERMETURE','#d40000',true);
+  status('Détour proposé sur rues réelles ('+Math.round(route.distance)+' m) — vérification terrain et réglementaire obligatoire.');
+  logAction('Proposition de détour OSRM '+Math.round(route.distance)+' m');
   renderPanel();
+ }catch(e){status('Calcul impossible : '+e.message+'. Aucun détour inventé.');}
+ finally{detourEnCours=false;}
 }
 
 map.on('click',e=>{
