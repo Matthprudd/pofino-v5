@@ -1063,7 +1063,7 @@ async function osrmTrip(waypoints,signal){
   const route=data.routes[0];
   return {points:route.geometry.coordinates.map(c=>[c[1],c[0]]),distance:route.distance};
 }
-async function createSuggestion(latlng){
+async async function createSuggestion(latlng){
   const generation=++routingGeneration;
   const center=[latlng.lat,latlng.lng];
   addMarker(latlng,'FERMÉ','#d40000',true);
