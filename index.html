@@ -155,6 +155,13 @@ button:hover{filter:brightness(1.08);}
 .drawer.collapsed + .drawerHandle{transform:translateX(0);}
 .drawerHandle button{width:42px;height:54px;border-radius:16px 0 0 16px;padding:0;color:#111;background:var(--orange);}
 
+.pofNav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:9px 9px 5px;background:#111}
+.pofNav button{padding:9px 3px;border-radius:10px;font-size:11px;background:#252525;color:#ddd;border:1px solid #444}
+.pofNav button.active{background:var(--orange);color:#111;border-color:var(--orange)}
+.pofSubnav{display:flex;overflow-x:auto;gap:6px;padding:5px 9px 10px;background:#111;border-bottom:1px solid #444}
+.pofSubnav button{white-space:nowrap;padding:7px 10px;font-size:11px;border-radius:9px;background:#202020;color:#eee;border:1px solid #444}
+.pofSubnav button.active{background:#ffd400;color:#111;border-color:#ffd400}
+@media(max-width:900px){.pofNav button{font-size:10px;min-height:39px}.pofSubnav button{min-height:34px}}
 /* TABS */
 .tabs{display:grid;grid-template-columns:repeat(10,1fr);border-bottom:1px solid #333;}
 .tab{padding:12px 2px;background:#161616;color:#aaa;font-size:9.5px;text-align:center;font-weight:900;cursor:pointer;}
@@ -409,18 +416,15 @@ textarea.field{resize:vertical;}
 <div class="quickRoads" id="quickRoads"></div>
 
 <div class="drawer" id="drawer">
-  <div class="tabs">
-    <div class="tab active" data-tab="dashboard" onclick="showTab('dashboard',this)">Dash</div>
-    <div class="tab" data-tab="chantier" onclick="showTab('chantier',this)">Chant.</div>
-    <div class="tab" data-tab="signal" onclick="showTab('signal',this)">Signal</div>
-    <div class="tab" data-tab="ia" onclick="showTab('ia',this)">IA</div>
-    <div class="tab" data-tab="doc2map" onclick="showTab('doc2map',this)">DOC2</div>
-    <div class="tab" data-tab="inventaire" onclick="showTab('inventaire',this)">Invent.</div>
-    <div class="tab" data-tab="terrain" onclick="showTab('terrain',this)">Terrain</div>
-    <div class="tab" data-tab="conformite" onclick="showTab('conformite',this)">Conf.</div>
-    <div class="tab" data-tab="corridors" onclick="showTab('corridors',this)">Rues</div>
-    <div class="tab" data-tab="data" onclick="showTab('data',this)">Data</div>
+  <div class="pofNav" id="pofNav" aria-label="Navigation principale">
+    <button type="button" data-group="overview" onclick="showGroup('overview')">Accueil</button>
+    <button type="button" data-group="operations" onclick="showGroup('operations')">Chantiers</button>
+    <button type="button" data-group="plans" onclick="showGroup('plans')">Plans</button>
+    <button type="button" data-group="resources" onclick="showGroup('resources')">Équipement</button>
+    <button type="button" data-group="teams" onclick="showGroup('teams')">Équipes</button>
+    <button type="button" data-group="office" onclick="showGroup('office')">Documents</button>
   </div>
+  <div class="pofSubnav" id="pofSubnav" aria-label="Sous-navigation"></div>
   <div class="content" id="content"></div>
 </div>
 
@@ -1677,11 +1681,42 @@ function deleteDoc2Map(id){
 }
 
 /* PANEL RENDERERS */
-function showTab(tab,el){
+const navigationGroups={
+  overview:{label:'Accueil',tabs:[['dashboard','Vue d’ensemble']]},
+  operations:{label:'Chantiers',tabs:[['chantier','Préparer'],['inventaire','Chantiers sauvegardés']]},
+  plans:{label:'Plans',tabs:[['signal','Panneaux'],['corridors','Rues et tracés'],['ia','SignalIA']]},
+  resources:{label:'Équipement',tabs:[['inventaire','Stocks et matériel'],['signal','Implantation']]},
+  teams:{label:'Équipes',tabs:[['terrain','Interventions terrain'],['chantier','Affectations'],['conformite','Contrôle']]},
+  office:{label:'Documents',tabs:[['doc2map','DOC2MAP'],['conformite','Conformité'],['data','Exports et archives']]}
+};
+let activeGroup='overview';
+const defaultTabGroup={dashboard:'overview',chantier:'operations',signal:'plans',ia:'plans',doc2map:'office',
+ inventaire:'resources',terrain:'teams',conformite:'office',corridors:'plans',data:'office'};
+function updateNavigation(){
+ const nav=document.getElementById('pofNav'),sub=document.getElementById('pofSubnav');
+ if(!nav||!sub)return;
+ nav.querySelectorAll('[data-group]').forEach(b=>{
+   const on=b.dataset.group===activeGroup;
+   b.classList.toggle('active',on);
+   b.setAttribute('aria-pressed',on?'true':'false');
+ });
+ const items=navigationGroups[activeGroup]?.tabs||[];
+ sub.innerHTML=items.length>1?items.map(([id,title])=>
+   '<button type="button" class="'+(id===activeTab?'active':'')+'" onclick="showTab(\\''+id+'\\')">'+esc(title)+'</button>'
+ ).join(''):'';
+}
+function showGroup(group){
+ const config=navigationGroups[group];if(!config)return;
+ activeGroup=group;
+ showTab(config.tabs[0][0],null,true);
+}
+function showTab(tab,el,fromGroup=false){
+  if(!fromGroup && !(navigationGroups[activeGroup]?.tabs.some(item=>item[0]===tab))){
+    activeGroup=defaultTabGroup[tab]||'overview';
+  }
   activeTab=tab;
   const contentEl=document.getElementById('content');if(contentEl)contentEl.scrollTop=0;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  if(el)el.classList.add('active');
+  updateNavigation();
   renderPanel();
 }
 function renderPanel(){
@@ -2165,6 +2200,7 @@ function clearVisualMap(reset=true){
 
 /* INIT */
 renderQuickRoads();
+updateNavigation();
 renderPanel();
 </script>
 </body>
