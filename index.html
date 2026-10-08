@@ -475,13 +475,52 @@ const priorityRoads=[
    La géométrie et les sens de circulation sont obtenus du réseau cartographique,
    jamais inventés depuis ces captures. */
 const mileEndRoadRegistry=[
- 'Boulevard Saint-Laurent','Boulevard Saint-Joseph Ouest','Avenue Laurier Ouest',
- 'Avenue du Parc','Rue Clark','Rue Saint-Urbain','Rue Waverly',
- 'Rue Hutchison','Avenue de l’Esplanade','Rue Jeanne-Mance',
- 'Avenue Casgrain','Avenue de Gaspé','Rue Villeneuve Ouest',
- 'Avenue Coloniale','Rue Saint-Dominique','Rue Fairmount Ouest',
- 'Rue Bernard Ouest','Rue Saint-Viateur Ouest','Rue Bagg',
- 'Rue de Bullion','Rue Saint-Cuthbert','Rue Rachel Ouest'
+ 'Boulevard Saint-Laurent',
+ 'Boulevard Saint-Joseph Ouest',
+ 'Avenue Laurier Ouest',
+ 'Avenue du Parc',
+ 'Rue Clark',
+ 'Rue Saint-Urbain',
+ 'Rue Waverly',
+ 'Rue Hutchison',
+ 'Avenue de l’Esplanade',
+ 'Rue Jeanne-Mance',
+ 'Avenue Casgrain',
+ 'Avenue de Gaspé',
+ 'Rue Villeneuve Ouest',
+ 'Avenue Coloniale',
+ 'Rue Saint-Dominique',
+ 'Rue Fairmount Ouest',
+ 'Rue Bernard Ouest',
+ 'Rue Saint-Viateur Ouest',
+ 'Rue Bagg',
+ 'Rue de Bullion',
+ 'Rue Saint-Cuthbert',
+ 'Rue Rachel Ouest',
+ 'Rue Maguire',
+ 'Rue Drolet',
+ 'Avenue Henri-Julien',
+ 'Rue Marmette',
+ 'Rue Elmire',
+ 'Rue Demers',
+ 'Avenue de l’Hôtel-de-Ville',
+ 'Rue Gilford',
+ 'Rue de Grand-Pré',
+ 'Rue Marie-Anne Ouest',
+ 'Rue Labadie',
+ 'Avenue Édouard-Charles',
+ 'Avenue Outremont',
+ 'Avenue Nelson',
+ 'Avenue McNider',
+ 'Avenue Villeneuve',
+ 'Avenue Maplewood',
+ 'Avenue Fernhill',
+ 'Chemin de la Côte-Sainte-Catherine',
+ 'Boulevard du Mont-Royal',
+ 'Avenue Querbes',
+ 'Avenue de l’Épée',
+ 'Rue Fairmount',
+ 'Rue Lajoie'
 ];
 function findMileEndRoad(name){
  return mileEndRoadRegistry.find(r=>r.toLocaleLowerCase('fr').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[’']/g,"'")===String(name).toLocaleLowerCase('fr').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[’']/g,"'"));
@@ -493,7 +532,7 @@ async function selectRegistryRoad(index){
  document.getElementById('results').style.display='none';
  status('Localisation et géométrie de '+name+' en cours…');
  try{
-   const query=name+', Le Plateau-Mont-Royal, Montréal, Québec, Canada';
+   const query=name+', Montréal, Québec, Canada';
    const url='https://nominatim.openstreetmap.org/search?format=json&limit=8&countrycodes=ca&polygon_geojson=1&q='+encodeURIComponent(query);
    const response=await fetch(url,{headers:{Accept:'application/json'}});
    if(!response.ok)throw new Error('Géocodage indisponible');
