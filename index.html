@@ -993,16 +993,24 @@ function addQuebecSign(name){
   logAction('Pancarte ajoutée : '+sign.name);
   renderPanel();
 }
+const signMarkerByRecord=new WeakMap();
 function removeOneSign(label){
   const idx=currentSigns.findIndex(s=>s.label===label);
-  if(idx>=0){
-    currentSigns.splice(idx,1);
-    status('Pancarte retirée de la fiche. Nettoie/restaure la carte pour retirer le marqueur visuel.');
-    logAction('Pancarte retirée de la fiche : '+label);
-    renderPanel();
+  if(idx<0)return;
+  const record=currentSigns[idx];
+  const marker=signMarkerByRecord.get(record);
+  if(marker){
+    map.removeLayer(marker);
+    markerLayers=markerLayers.filter(m=>m!==marker);
+    mapLayers=mapLayers.filter(m=>m!==marker);
+    signMarkerByRecord.delete(record);
   }
+  currentSigns.splice(idx,1);
+  status('Panneau retiré de la carte et de la fiche.');
+  logAction('Pancarte retirée : '+label);
+  renderPanel();
 }
-function addMarker(latlng,label,color,save=true,signName=null){
+function addMarker(latlng,label,color,save=true,signName=null,existingRecord=null){
   // Support des anciens chantiers: chercher le panneau par nom officiel ou libellé.
   const sign=quebecSigns.find(x=>x.name===signName)
     ||(!signName && quebecSigns.find(x=>x.label===label));
@@ -1019,10 +1027,11 @@ function addMarker(latlng,label,color,save=true,signName=null){
   marker.bindTooltip(esc(sign?sign.name:label),{direction:'top'});
   if(!layerVisibility.signs)map.removeLayer(marker);
 
-  if(save){
-    const obj={lat:latlng.lat??latlng[0],lng:latlng.lng??latlng[1],label,color};
-    if(sign)obj.signName=sign.name;
-    currentSigns.push(obj);
+  if(save||existingRecord){
+    const obj=existingRecord||{lat:latlng.lat??latlng[0],lng:latlng.lng??latlng[1],label,color};
+    if(sign && !obj.signName)obj.signName=sign.name;
+    if(save)currentSigns.push(obj);
+    signMarkerByRecord.set(obj,marker);
     marker.on('dragend',()=>{
       const p=marker.getLatLng();
       obj.lat=p.lat; obj.lng=p.lng;
@@ -1093,7 +1102,7 @@ async async function createSuggestion(latlng){
     line.bindPopup('<b>Détour routier proposé</b><br>Calcul selon réseau routier, non approuvé.<br>Vérifier sens uniques, accès chantier et signalisation.');
     routeLayers.push(line);mapLayers.push(line);
     currentRoutes.push({points:best.points,color:'#ffd400',auto:true,verified:false,
-      label:'SignalIA — itinéraire routier à valider',distanceMeters:Math.round(best.distance)});
+      label:'PROPOSITION NON VALIDÉE — étude de détour seulement',distanceMeters:Math.round(best.distance)});
     map.fitBounds(line.getBounds(),{padding:[65,65],maxZoom:16});
     status('Détour calculé sur rues ('+Math.round(best.distance)+' m). Validation terrain obligatoire.');
     logAction('Détour OSRM proposé — '+Math.round(best.distance)+' m');
@@ -1982,8 +1991,11 @@ function collectChantier(){
 }
 function saveChantier(){
   const item=collectChantier();
-  inventory.unshift(item);
-  localStorage.setItem('pofino_v7_inventory',JSON.stringify(inventory));
+  try{
+    const next=[item,...inventory];
+    localStorage.setItem('pofino_v7_inventory',JSON.stringify(next));
+    inventory=next;
+  }catch(error){status('Sauvegarde impossible : espace local indisponible ou plein. Exportez votre chantier en JSON.');return;}
   status('Chantier sauvegardé localement.');
   logAction('Chantier sauvegardé : '+item.ref);
   renderPanel();
@@ -1998,7 +2010,7 @@ function restore(idx){
   currentValidations=JSON.parse(JSON.stringify(item.validations||[]));
   simulatedPhotos=JSON.parse(JSON.stringify(item.photos||[]));
   if(item.latlng)highlightRoad(item.latlng[0],item.latlng[1],item.street);
-  currentSigns.forEach(s=>addMarker([s.lat,s.lng],s.label,s.color,false,s.signName||null));
+  currentSigns.forEach(s=>addMarker([s.lat,s.lng],s.label,s.color,false,s.signName||null,s));
   currentRoutes.forEach(r=>{
     const line=L.polyline(r.points,{color:r.color||'#ff6600',weight:6,opacity:.9,dashArray:r.auto?'10,8':null}).addTo(map);
     line.bindPopup(esc(r.label||'Détour'));
@@ -2140,6 +2152,7 @@ function clearVisualMap(reset=true){
   mapLayers=[]; markerLayers=[]; routeLayers=[];
   if(routeLine)try{map.removeLayer(routeLine)}catch(e){}
   routeLine=null; routePoints=[];
+  if(typeof corridorLayers!=='undefined')clearCorridors();
   if(selectedLayer)try{map.removeLayer(selectedLayer)}catch(e){}
   selectedLayer=null;
   if(reset){
