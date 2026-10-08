@@ -191,6 +191,15 @@ textarea.field{resize:vertical;}
 .mapLabel.blue{background:var(--blue);color:#fff;}
 .mapLabel.purple{background:var(--purple);color:#fff;}
 
+.mapSignMarker{background:transparent;border:0}
+.mapSignWrapper{display:flex;flex-direction:column;align-items:center;gap:2px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.65));min-width:62px;transform:translate(-50%,-100%)}
+.mapSignFace{width:58px;height:58px;display:flex;align-items:center;justify-content:center}
+.mapSignFace .signDiamond{width:42px;height:42px}
+.mapSignFace .signCircle{width:50px;height:50px}
+.mapSignFace .signRect{min-width:54px;min-height:38px}
+.mapSignFace .signDiamond span{font-size:15px}
+.mapSignCaption{font:700 10px/1.1 Arial, sans-serif;background:#111;color:#fff;border:1px solid #fff;border-radius:5px;padding:3px 5px;text-align:center;max-width:105px;white-space:normal}
+@media(max-width:900px){.mapSignCaption{font-size:9px}}
 /* SEARCH RESULTS */
 .results{
   position:absolute;top:80px;left:265px;right:460px;z-index:10002;background:#111;border:1px solid var(--orange);
@@ -979,7 +988,7 @@ function addQuebecSign(name){
   if(!sign)return;
   const base=selectedLatLng?{lat:selectedLatLng[0],lng:selectedLatLng[1]}:map.getCenter();
   const offset=(currentSigns.length%10)*0.00034;
-  addMarker({lat:base.lat+offset,lng:base.lng+offset},sign.label,sign.color,true);
+  addMarker({lat:base.lat+offset,lng:base.lng+offset},sign.label,sign.color,true,sign.name);
   status(`${sign.name} ajouté sur la carte.`);
   logAction('Pancarte ajoutée : '+sign.name);
   renderPanel();
@@ -993,14 +1002,26 @@ function removeOneSign(label){
     renderPanel();
   }
 }
-function addMarker(latlng,label,color,save=true){
-  const icon=L.divIcon({className:'',html:`<div class="mapLabel ${classByColor(color)}">${esc(label)}</div>`});
+function addMarker(latlng,label,color,save=true,signName=null){
+  // Support des anciens chantiers: chercher le panneau par nom officiel ou libellé.
+  const sign=quebecSigns.find(x=>x.name===signName)
+    ||(!signName && quebecSigns.find(x=>x.label===label));
+  const markup=sign
+    ? '<div class="mapSignWrapper"><div class="mapSignFace">'+signVisual(sign)+'</div><div class="mapSignCaption">'+esc(sign.name)+'</div></div>'
+    : '<div class="mapLabel '+classByColor(color)+'">'+esc(label)+'</div>';
+  const icon=L.divIcon({
+    className:sign?'mapSignMarker':'',
+    html:markup,iconSize:sign?[1,1]:null,iconAnchor:sign?[0,0]:null
+  });
   const marker=L.marker(latlng,{icon,draggable:true}).addTo(map);
   markerLayers.push(marker);
   mapLayers.push(marker);
+  marker.bindTooltip(esc(sign?sign.name:label),{direction:'top'});
+  if(!layerVisibility.signs)map.removeLayer(marker);
 
   if(save){
-    const obj={lat:latlng.lat||latlng[0],lng:latlng.lng||latlng[1],label,color};
+    const obj={lat:latlng.lat??latlng[0],lng:latlng.lng??latlng[1],label,color};
+    if(sign)obj.signName=sign.name;
     currentSigns.push(obj);
     marker.on('dragend',()=>{
       const p=marker.getLatLng();
@@ -1011,6 +1032,7 @@ function addMarker(latlng,label,color,save=true){
   }
   return marker;
 }
+
 /* Calcul de détour sur le réseau via OSRM. Service public : démonstration uniquement.
    Aucun détour fictif n'est dessiné si le calcul ou l'évitement échoue. */
 let routingGeneration=0;
@@ -1976,7 +1998,7 @@ function restore(idx){
   currentValidations=JSON.parse(JSON.stringify(item.validations||[]));
   simulatedPhotos=JSON.parse(JSON.stringify(item.photos||[]));
   if(item.latlng)highlightRoad(item.latlng[0],item.latlng[1],item.street);
-  currentSigns.forEach(s=>addMarker([s.lat,s.lng],s.label,s.color,false));
+  currentSigns.forEach(s=>addMarker([s.lat,s.lng],s.label,s.color,false,s.signName||null));
   currentRoutes.forEach(r=>{
     const line=L.polyline(r.points,{color:r.color||'#ff6600',weight:6,opacity:.9,dashArray:r.auto?'10,8':null}).addTo(map);
     line.bindPopup(esc(r.label||'Détour'));
