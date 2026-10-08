@@ -643,7 +643,12 @@ const mileEndRoadRegistry=[
  'Rue de l\'Esplanade',
  'Rue Bercy',
  'Rue Gascon',
- 'Rue Chapleau'
+ 'Rue Chapleau',
+ 'Avenue Laurier Est',
+ 'Rue Holt',
+ 'Avenue Louis-Hébert',
+ 'Rue Franchère',
+ 'Rue Molson'
 ];
 function findMileEndRoad(name){
  return mileEndRoadRegistry.find(r=>r.toLocaleLowerCase('fr').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[’']/g,"'")===String(name).toLocaleLowerCase('fr').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[’']/g,"'"));
