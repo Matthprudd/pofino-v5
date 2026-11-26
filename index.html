@@ -447,6 +447,16 @@ textarea.field{resize:vertical;}
  .drawer{bottom:56px}
  .leaflet-bottom.leaflet-left{bottom:54px}
 }
+/* Présentation par profil, sans modification des données */
+[hidden]{display:none!important}
+.roleAccessNote{font-size:11px;color:#bbb;line-height:1.4;margin:8px 0}
+.roleStrip{background:#151515;color:#ddd;font-size:11px;padding:6px 10px;border-bottom:1px solid #333}
+.roleStrip b{color:var(--orange)}
+.mapTools{grid-template-columns:repeat(var(--visible-tools,7),minmax(0,1fr))}
+@media(max-width:900px){
+ .mapTools{grid-template-columns:repeat(var(--visible-tools,7),minmax(0,1fr))}
+ .mapTools .tool small{font-size:8px}
+}
 </style>
 </head>
 
@@ -495,8 +505,8 @@ textarea.field{resize:vertical;}
 
   <div class="topActions">
     <button class="darkBtn" onclick="showTab('dashboard',document.querySelector('[data-tab=dashboard]'))">Dashboard</button>
-    <button class="darkBtn" onclick="clearVisualMap()">Nettoyer</button>
-    <button onclick="saveChantier()">Sauver</button>
+    <button id="topClear" class="darkBtn" onclick="clearVisualMap()">Nettoyer</button>
+    <button id="topSave" onclick="saveChantier()">Sauver</button>
   </div>
 </div>
 
@@ -509,13 +519,14 @@ textarea.field{resize:vertical;}
   <button class="tool" id="detourBtn" onclick="setMode('detour')" title="Détour">↪<small>DET</small></button>
   <button class="tool" id="closedBtn" onclick="setMode('closed')" title="Fermeture + suggestion IA">⛔<small>IA</small></button>
   <button class="tool" id="routeBtn" onclick="setMode('route')" title="Tracer détour">〰<small>TRAC</small></button>
-  <button class="tool" onclick="clearVisualMap()" title="Nettoyer carte">🗑<small>CLEAR</small></button>
+  <button id="clearTool" class="tool" onclick="clearVisualMap()" title="Nettoyer carte">🗑<small>CLEAR</small></button>
 </div>
 
 <div class="miniStatus" id="status">Bienvenue dans POFINO V7. Choisis un rôle pour commencer.</div>
 <div class="quickRoads" id="quickRoads"></div>
 
 <div class="drawer" id="drawer">
+  <div class="roleStrip" id="roleStrip"><b>POFINO</b> · Choisir un profil</div>
   <div class="pofNav" id="pofNav" aria-label="Navigation principale">
     <button type="button" data-group="overview" onclick="showGroup('overview')">Accueil</button>
     <button type="button" data-group="operations" onclick="showGroup('operations')">Chantiers</button>
@@ -935,6 +946,27 @@ const simulatedAssets=[
 
 /* STATE */
 let userRole='Démo';
+/* Restrictions de démonstration côté navigateur, pas une frontière de sécurité. */
+const rolePolicies={
+ 'Admin':{groups:['overview','operations','plans','resources','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','deleteDoc','pdf','export','import','corridor'],home:'dashboard'},
+ 'Gestionnaire':{groups:['overview','operations','plans','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','pdf','export','corridor'],home:'chantier'},
+ 'Terrain':{groups:['overview','operations','plans','teams'],tabs:['dashboard','inventaire','signal','terrain'],modes:['move','work','detour'],caps:['sign','terrain'],home:'terrain'},
+ 'Client observateur':{groups:['overview','operations'],tabs:['dashboard','inventaire'],modes:['move'],caps:[],home:'dashboard'}
+};
+function policy(){return rolePolicies[userRole]||rolePolicies.Admin;}
+function can(cap){return policy().caps.includes(cap);}
+function allow(cap){if(can(cap))return true;status('Action réservée à un profil autorisé.');return false;}
+function roleGroupTabs(group){return (navigationGroups[group]?.tabs||[]).filter(([id])=>policy().tabs.includes(id));}
+function applyRoleUI(){
+ const p=policy();
+ const controls={signToolsBtn:can('sign'),moveBtn:true,workBtn:p.modes.includes('work'),detourBtn:p.modes.includes('detour'),closedBtn:p.modes.includes('closed'),routeBtn:p.modes.includes('route'),clearTool:can('clear'),topSave:can('save'),topClear:can('clear')};
+ Object.entries(controls).forEach(([id,visible])=>{const e=document.getElementById(id);if(e)e.hidden=!visible;});
+ const toolbar=document.querySelector('.mapTools');
+ if(toolbar)toolbar.style.setProperty('--visible-tools',String(Object.keys(controls).slice(0,7).filter(id=>controls[id]).length));
+ const strip=document.getElementById('roleStrip');
+ if(strip)strip.innerHTML='<b>'+esc(userRole)+'</b> · '+(userRole==='Client observateur'?'Consultation locale':userRole==='Terrain'?'Intervention terrain':userRole==='Gestionnaire'?'Planification et suivi':'Accès complet');
+ markerLayers.forEach(m=>{if(m.dragging){can('sign')?m.dragging.enable():m.dragging.disable();}});
+}
 let mode='move';
 let activeTab='dashboard';
 let drawerCollapsed=false;
@@ -988,7 +1020,13 @@ function classByColor(color){
   return '';
 }
 function loginAs(role){
+  if(!rolePolicies[role])return;
   userRole=role;
+  mode='move';
+  activeGroup=policy().groups.find(g=>roleGroupTabs(g).some(([id])=>id===policy().home))||'overview';
+  activeTab=policy().home;
+  applyRoleUI();
+  updateNavigation();
   document.getElementById('startScreen').style.display='none';
   document.getElementById('roleText').innerText='Rôle : '+role;
   status('Connecté en mode '+role+'. Prototype local V7 actif.');
@@ -1009,6 +1047,7 @@ function setDrawerCollapsed(value){
 function toggleDrawer(){setDrawerCollapsed(!drawerCollapsed);}
 function openDrawer(){setDrawerCollapsed(false);}
 function openSignTools(){
+  if(!allow('sign'))return;
   setMode('move');
   showTab('signal');
   openDrawer();
@@ -1035,6 +1074,7 @@ function toggleLayer(layerName){
 
 /* MODES */
 function setMode(m){
+  if(!policy().modes.includes(m)){status('Outil réservé à un profil autorisé.');return;}
   mode=m;
   document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active'));
   const id={move:'moveBtn',work:'workBtn',detour:'detourBtn',closed:'closedBtn',route:'routeBtn'}[m];
@@ -1128,6 +1168,7 @@ function signVisual(s){
 }
 function setSignalCat(cat){activeSignalCat=cat;renderPanel();}
 function addQuebecSign(name){
+  if(!allow('sign'))return;
   const sign=quebecSigns.find(x=>x.name===name);
   if(!sign)return;
   const base=selectedLatLng?{lat:selectedLatLng[0],lng:selectedLatLng[1]}:map.getCenter();
@@ -1141,6 +1182,7 @@ function addQuebecSign(name){
 }
 const signMarkerByRecord=new WeakMap();
 function removeOneSign(label){
+  if(!allow('sign'))return;
   const idx=currentSigns.findIndex(s=>s.label===label);
   if(idx<0)return;
   const record=currentSigns[idx];
@@ -1167,7 +1209,7 @@ function addMarker(latlng,label,color,save=true,signName=null,existingRecord=nul
     className:sign?'mapSignMarker':'',
     html:markup,iconSize:sign?[1,1]:null,iconAnchor:sign?[0,0]:null
   });
-  const marker=L.marker(latlng,{icon,draggable:true}).addTo(map);
+  const marker=L.marker(latlng,{icon,draggable:can('sign')}).addTo(map);
   markerLayers.push(marker);
   mapLayers.push(marker);
   marker.bindTooltip(esc(sign?sign.name:label),{direction:'top'});
@@ -1264,6 +1306,7 @@ async function createSuggestion(latlng){
 }
 
 map.on('click',e=>{
+  if(!policy().modes.includes(mode))return;
   selectedLatLng=[e.latlng.lat,e.latlng.lng];
   if(mode==='move')return;
   if(mode==='work')addMarker(e.latlng,'TRAVAUX','#ff6600',true);
@@ -1330,6 +1373,7 @@ function getCompliance(){
 
 /* VALIDATION / PHOTOS */
 function toggleValidation(key){
+  if(!allow('terrain'))return;
   const i=currentValidations.indexOf(key);
   if(i>=0)currentValidations.splice(i,1);
   else currentValidations.push(key);
@@ -1337,6 +1381,7 @@ function toggleValidation(key){
   renderPanel();
 }
 function addSimPhoto(){
+  if(!allow('terrain'))return;
   const n=simulatedPhotos.length+1;
   simulatedPhotos.unshift({id:'PHOTO-'+String(n).padStart(3,'0'),time:new Date().toLocaleString('fr-CA'),note:'Photo terrain simulée'});
   status('Photo terrain simulée ajoutée.');
@@ -1344,6 +1389,7 @@ function addSimPhoto(){
   renderPanel();
 }
 function scanQr(){
+  if(!allow('terrain'))return;
   const code='QR-'+Math.random().toString(36).slice(2,8).toUpperCase();
   status('Scan QR simulé : '+code);
   logAction('Scan QR simulé : '+code);
@@ -1410,6 +1456,7 @@ function drawCorridor(id){
 }
 
 function addCorridorToCurrentProject(){
+  if(!allow('corridor'))return;
   const corridor=montrealRoadMemory.find(c=>c.id===activeCorridorId);
   if(!corridor){status('Aucun corridor actif à intégrer au chantier.');return;}
 
@@ -1588,6 +1635,7 @@ function localPdfTextFallback(buffer){
 }
 
 async function processDoc2MapPdf(file){
+  if(!allow('doc'))return;
   if(!file)return;
   if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){
     setDoc2LiveStatus('DOC2MAP : format refusé. PDF requis.','err');return;
@@ -1753,7 +1801,7 @@ function openDoc2Map(id){
     <div class="card"><h3>Texte extrait</h3><div class="docPreview">${esc(d.text.slice(0,7000))}</div></div>
     <div class="docRow">
       <button class="greenBtn" onclick="validateDoc2Map('${d.id}')">Valider document</button>
-      <button class="redBtn" onclick="deleteDoc2Map('${d.id}')">Supprimer</button>
+      <button class="redBtn" onclick="deleteDoc2Map('${d.id}')" ${can('deleteDoc')?'':'hidden'}>Supprimer</button>
     </div>`;
   document.getElementById('docModal').classList.remove('hidden');
 }
@@ -1771,6 +1819,7 @@ async function locateDocAction(id,index){
   status('DOC2MAP : secteur proposé. Vérifie la position avant application.');
 }
 function applyDoc2MapToChantier(id){
+  if(!allow('doc'))return;
   const d=doc2mapLibrary.find(x=>x.id===id);if(!d)return;
   selectedStreet=d.classification.street||selectedStreet;
   if(d.classification.street)document.getElementById('streetSearch').value=d.classification.street;
@@ -1791,6 +1840,7 @@ function applyDoc2MapToChantier(id){
   logAction('DOC2MAP -> fiche chantier : '+d.name);
 }
 function proposeDocAction(id,index){
+  if(!allow('doc'))return;
   const d=doc2mapLibrary.find(x=>x.id===id),a=d?.actions[index];if(!a)return;
   const c=map.getCenter(),offset=(Math.random()-.5)*.0011;
   const lat=c.lat+offset,lng=c.lng-offset;
@@ -1809,6 +1859,7 @@ function proposeDocAction(id,index){
   openDoc2Map(id);
 }
 function validateDoc2Map(id){
+  if(!allow('doc'))return;
   const d=doc2mapLibrary.find(x=>x.id===id);if(!d)return;
   d.status='Validé';
   d.actions.forEach(a=>{if(a.status==='Proposé')a.status='Validé documentaire';});
@@ -1817,6 +1868,7 @@ function validateDoc2Map(id){
   closeDoc2Map();renderPanel();
 }
 function deleteDoc2Map(id){
+  if(!allow('deleteDoc'))return;
   if(!confirm('Supprimer ce document DOC2MAP de la bibliothèque locale ?'))return;
   doc2mapLibrary=doc2mapLibrary.filter(x=>x.id!==id);saveDoc2Map();
   closeDoc2Map();renderPanel();logAction('DOC2MAP document supprimé');
@@ -1849,11 +1901,13 @@ function updateNavigation(){
  const nav=document.getElementById('pofNav'),sub=document.getElementById('pofSubnav');
  if(!nav||!sub)return;
  nav.querySelectorAll('[data-group]').forEach(b=>{
-   const on=b.dataset.group===activeGroup;
+   const visible=policy().groups.includes(b.dataset.group)&&roleGroupTabs(b.dataset.group).length>0;
+   b.hidden=!visible;
+   const on=visible&&b.dataset.group===activeGroup;
    b.classList.toggle('active',on);
    b.setAttribute('aria-pressed',on?'true':'false');
  });
- const items=navigationGroups[activeGroup]?.tabs||[];
+ const items=roleGroupTabs(activeGroup);
  sub.innerHTML=items.length>1?items.map(([id,title])=>
    '<button type="button" class="'+(id===activeTab?'active':'')+'" data-nav-tab="'+id+'">'+esc(title)+'</button>'
  ).join(''):'';
@@ -1861,13 +1915,14 @@ function updateNavigation(){
 
 }
 function showGroup(group){
- const config=navigationGroups[group];if(!config)return;
+ const items=roleGroupTabs(group);if(!policy().groups.includes(group)||!items.length)return;
  activeGroup=group;
- showTab(config.tabs[0][0],null,true);
+ showTab(items[0][0],null,true);
 }
 function showTab(tab,el,fromGroup=false){
-  if(!fromGroup && !(navigationGroups[activeGroup]?.tabs.some(item=>item[0]===tab))){
-    activeGroup=defaultTabGroup[tab]||'overview';
+  if(!policy().tabs.includes(tab)){status('Module réservé à un profil autorisé.');return;}
+  if(!fromGroup && !roleGroupTabs(activeGroup).some(item=>item[0]===tab)){
+    activeGroup=policy().groups.find(g=>roleGroupTabs(g).some(item=>item[0]===tab))||'overview';
   }
   activeTab=tab;
   const contentEl=document.getElementById('content');if(contentEl)contentEl.scrollTop=0;
@@ -1879,7 +1934,9 @@ function renderPanel(){
   const s=getStats();
   const conf=getCompliance();
 
-  if(activeTab==='dashboard'){
+  if(activeTab==='dashboard' && (userRole==='Terrain'||userRole==='Client observateur')){
+    c.innerHTML=`<div class="card"><h3>${userRole==='Terrain'?'Mes interventions':'Suivi des chantiers'}</h3><p class="small">${userRole==='Terrain'?'Consultez les fiches locales et préparez votre intervention.':'Consultation des fiches présentes sur cet appareil.'}</p><span class="badge orange">Chantiers : ${inventory.length}</span><span class="badge green">Actifs : ${inventory.filter(i=>i.status==='Actif').length}</span><button class="darkBtn" onclick="showTab('inventaire')">Consulter les chantiers</button>${userRole==='Terrain'?'<button onclick="showTab(\'terrain\')">Checklist terrain</button>':''}</div><div class="card"><h3>Carte</h3><div class="grid2"><button class="darkBtn" onclick="setBaseLayer('routiere')">Routière</button><button class="darkBtn" onclick="setBaseLayer('satellite')">Satellite</button></div><div class="layerBox"><button class="layerBtn" onclick="toggleLayer('signs')">Panneaux</button><button class="layerBtn" onclick="toggleLayer('routes')">Détours</button></div></div>`;
+  }else if(activeTab==='dashboard'){
     c.innerHTML=`
       <div class="card">
         <h3>Dashboard pilote</h3>
@@ -2022,7 +2079,9 @@ function renderPanel(){
     },0);
   }
 
-  if(activeTab==='inventaire'){
+  if(activeTab==='inventaire' && userRole==='Client observateur'){
+    c.innerHTML='<div class="card"><h3>Chantiers en consultation</h3><p class="small">Données locales de démonstration, non filtrées par organisation.</p>'+renderInventory()+'</div>';
+  }else if(activeTab==='inventaire'){
     c.innerHTML=`
       <div class="card">
         <h3>Inventaire simulé</h3>
@@ -2043,6 +2102,7 @@ function renderPanel(){
         <h3>Validation terrain mobile</h3>
         <p class="small">Checklist courte pour installation, photos, QR, sécurité et retrait.</p>
         ${renderValidationRows()}
+        ${userRole==='Terrain'?'<p class="roleAccessNote">Les validations sont locales. Un gestionnaire doit enregistrer la fiche définitive dans cette version de démonstration.</p>':''}
       </div>
       <div class="card">
         <h3>Photos / QR simulés</h3>
@@ -2084,9 +2144,9 @@ function renderPanel(){
           <button onclick="generatePdfFromLatest()">PDF dernière fiche</button>
           <button class="darkBtn" onclick="exportJson()">Exporter JSON</button>
         </div>
-        <label class="fileInputLabel" style="margin-top:8px">
+        <label class="fileInputLabel" style="margin-top:8px" ${can('import')?'':'hidden'}>
           Importer JSON
-          <input type="file" accept=".json,application/json" onchange="importJson(event)">
+          <input type="file" accept=".json,application/json" onchange="importJson(event)" ${can('import')?'':'disabled'}>
         </label>
       </div>
       <div class="card">
@@ -2188,6 +2248,7 @@ function collectChantier(){
   };
 }
 function saveChantier(){
+  if(!allow('save'))return;
   const item=collectChantier();
   try{
     const next=[item,...inventory];
@@ -2222,11 +2283,13 @@ function restore(idx){
 
 /* PDF / JSON */
 function generatePdfFromLatest(){
-  if(!inventory.length)saveChantier();
+  if(!allow('pdf'))return;
+  if(!inventory.length&&can('save'))saveChantier();
   if(!inventory.length){status('Aucune fiche disponible.');return;}
   generatePdf(inventory[0]);
 }
 function generatePdf(item){
+  if(!allow('pdf'))return;
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
   const s=item.stats||getStats();
@@ -2313,6 +2376,7 @@ function generatePdf(item){
   renderPanel();
 }
 function exportJson(){
+  if(!allow('export'))return;
   const data={version:'POFINO V7',exported:new Date().toISOString(),inventory,active:collectChantier()};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -2325,6 +2389,7 @@ function exportJson(){
   logAction('Export JSON généré');
 }
 function importJson(event){
+  if(!allow('import'))return;
   const file=event.target.files[0];
   if(!file)return;
   const reader=new FileReader();
@@ -2345,6 +2410,7 @@ function importJson(event){
 
 /* CLEAR */
 function clearVisualMap(reset=true){
+  if(reset&&!allow('clear'))return;
   routingGeneration++;
   mapLayers.forEach(l=>{try{map.removeLayer(l)}catch(e){}});
   mapLayers=[]; markerLayers=[]; routeLayers=[];
