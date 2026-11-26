@@ -457,6 +457,14 @@ textarea.field{resize:vertical;}
  .mapTools{grid-template-columns:repeat(var(--visible-tools,7),minmax(0,1fr))}
  .mapTools .tool small{font-size:8px}
 }
+/* Gestionnaire — parcours et conservation des fiches */
+.managerActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px}
+.managerActions button{min-height:42px;text-align:left;font-size:12px}
+.managerActions .primary{grid-column:1/-1;background:var(--orange)}
+.fieldLabel{display:block;color:#ccc;font-size:11px;margin:6px 0 2px;font-weight:700}
+.currentProjectBar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#171717;border-bottom:1px solid #333;padding:6px 9px}
+.currentProjectBar span{flex:1;min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#eee}
+.currentProjectBar button{padding:7px 10px;border-radius:8px;font-size:11px}
 </style>
 </head>
 
@@ -527,6 +535,7 @@ textarea.field{resize:vertical;}
 
 <div class="drawer" id="drawer">
   <div class="roleStrip" id="roleStrip"><b>POFINO</b> · Choisir un profil</div>
+  <div class="currentProjectBar" id="currentProjectBar" hidden><span id="currentProjectTitle">Nouveau chantier</span><button class="darkBtn" onclick="showTab('chantier')">Fiche</button><button onclick="saveChantier()">Enregistrer</button></div>
   <div class="pofNav" id="pofNav" aria-label="Navigation principale">
     <button type="button" data-group="overview" onclick="showGroup('overview')">Accueil</button>
     <button type="button" data-group="operations" onclick="showGroup('operations')">Chantiers</button>
@@ -949,7 +958,7 @@ let userRole='Démo';
 /* Restrictions de démonstration côté navigateur, pas une frontière de sécurité. */
 const rolePolicies={
  'Admin':{groups:['overview','operations','plans','resources','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','deleteDoc','pdf','export','import','corridor'],home:'dashboard'},
- 'Gestionnaire':{groups:['overview','operations','plans','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','pdf','export','corridor'],home:'chantier'},
+ 'Gestionnaire':{groups:['overview','operations','plans','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','pdf','export','corridor'],home:'dashboard'},
  'Terrain':{groups:['overview','operations','plans','teams'],tabs:['dashboard','inventaire','signal','terrain'],modes:['move','work','detour'],caps:['sign','terrain'],home:'terrain'},
  'Client observateur':{groups:['overview','operations'],tabs:['dashboard','inventaire'],modes:['move'],caps:[],home:'dashboard'}
 };
@@ -963,6 +972,7 @@ function applyRoleUI(){
  Object.entries(controls).forEach(([id,visible])=>{const e=document.getElementById(id);if(e)e.hidden=!visible;});
  const toolbar=document.querySelector('.mapTools');
  if(toolbar)toolbar.style.setProperty('--visible-tools',String(Object.keys(controls).slice(0,7).filter(id=>controls[id]).length));
+ const bar=document.getElementById('currentProjectBar');if(bar)bar.hidden=!can('save');
  const strip=document.getElementById('roleStrip');
  if(strip)strip.innerHTML='<b>'+esc(userRole)+'</b> · '+(userRole==='Client observateur'?'Consultation locale':userRole==='Terrain'?'Intervention terrain':userRole==='Gestionnaire'?'Planification et suivi':'Accès complet');
  markerLayers.forEach(m=>{if(m.dragging){can('sign')?m.dragging.enable():m.dragging.disable();}});
@@ -991,6 +1001,8 @@ let inventory=JSON.parse(localStorage.getItem('pofino_v7_inventory')||'[]');
 let pdfLibrary=JSON.parse(localStorage.getItem('pofino_v7_pdf')||'[]');
 let doc2mapLibrary=JSON.parse(localStorage.getItem('pofino_v73_doc2map')||'[]');
 let doc2mapProposalLayers=[];
+let chantierDraft=null,activeChantierRef=null,savedFingerprint=null;
+const chantierFields={fRef:'ref',fProject:'project',fClient:'client',fStreet:'street',fDate:'date',fTime:'time',fEndTime:'endTime',fStaffCount:'staffCount',fType:'type',fPhase:'phase',fStatus:'status',fTeam:'team',fNote:'note'};
 let activeDoc2MapId='';
 
 const today=new Date().toISOString().slice(0,10);
@@ -1009,8 +1021,44 @@ function logAction(action){
 }
 function generateRef(){
   const d=new Date();
-  return `POF-${String(d.getFullYear()).slice(2)}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(inventory.length+1).padStart(4,'0')}`;
+  const prefix=`POF-${String(d.getFullYear()).slice(2)}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-`;let n=inventory.length+1;while(inventory.some(i=>i.ref===prefix+String(n).padStart(4,'0')))n++;return prefix+String(n).padStart(4,'0');
 }
+function freshChantier(){
+ return {ref:generateRef(),project:'Projet signalisation temporaire',client:'Client pilote',street:selectedStreet||'',date:today,time:'08:00',endTime:'17:00',staffCount:'2',type:'Travaux',phase:'Phase 1',status:'À préparer',team:'Équipe terrain #1',note:''};
+}
+function draft(){if(!chantierDraft)chantierDraft=freshChantier();return chantierDraft;}
+function hydrateChantier(){
+ const d=draft();
+ Object.entries(chantierFields).forEach(([id,key])=>{const e=document.getElementById(id);if(e)e.value=String(d[key]??'');});
+}
+function updateProjectBar(){
+ const e=document.getElementById('currentProjectTitle');if(e)e.textContent=(activeChantierRef?'Fiche '+activeChantierRef+' · ':'Brouillon · ')+draft().project;
+}
+function syncStreet(name){selectedStreet=name;draft().street=name;const e=document.getElementById('fStreet');if(e)e.value=name;}
+function fingerprint(){
+ return JSON.stringify([draft(),selectedLatLng,currentSigns,currentRoutes,currentValidations,simulatedPhotos]);
+}
+function hasUnsavedWork(){
+ if(savedFingerprint!==null)return fingerprint()!==savedFingerprint;
+ return currentSigns.length>0||currentRoutes.length>0||currentValidations.length>0||simulatedPhotos.length>0||JSON.stringify(draft())!==JSON.stringify(freshChantier())||Boolean(selectedLatLng);
+}
+function mayLeaveProject(){return !can('save')||!hasUnsavedWork()||confirm('Des modifications ne sont pas enregistrées. Continuer sans les enregistrer ?');}
+function newChantier(){
+ if(!allow('save')||!mayLeaveProject())return;
+ clearVisualMap(false);currentSigns=[];currentRoutes=[];currentValidations=[];simulatedPhotos=[];auditLog=[];
+ selectedStreet='';selectedLatLng=null;activeChantierRef=null;chantierDraft=null;savedFingerprint=null;
+ document.getElementById('streetSearch').value='';mode='move';setMode('move');showTab('chantier');openDrawer();
+ status('Nouvelle fiche prête. Les chantiers enregistrés sont conservés.');
+}
+document.addEventListener('input',e=>{
+ const key=chantierFields[e.target?.id];if(!key||key==='ref'||!can('save'))return;
+ draft()[key]=e.target.value;
+ if(key==='street'&&selectedStreet!==e.target.value){selectedStreet=e.target.value;selectedLatLng=null;if(selectedLayer){map.removeLayer(selectedLayer);selectedLayer=null;}}
+ updateProjectBar();
+});
+document.addEventListener('change',e=>{
+ const key=chantierFields[e.target?.id];if(key&&key!=='ref'&&can('save')){draft()[key]=e.target.value;updateProjectBar();}
+});
 function classByColor(color){
   if(color==='#ffd400')return 'yellow';
   if(color==='#d40000')return 'red';
@@ -1097,7 +1145,8 @@ function renderQuickRoads(){
 }
 function selectRoad(i){
   const r=priorityRoads[i];
-  selectedStreet=r.name;
+  syncStreet(r.name);
+  document.getElementById('results').style.display='none';
   selectedLatLng=[r.lat,r.lng];
   document.getElementById('streetSearch').value=r.name;
   highlightRoad(r.lat,r.lng,r.name);
@@ -1144,7 +1193,7 @@ function showSearchResults(data,q){
 }
 function selectSearchResult(r,q){
   document.getElementById('results').style.display='none';
-  selectedStreet=q;
+  syncStreet(q);
   selectedLatLng=[+r.lat,+r.lon];
   if(selectedLayer)map.removeLayer(selectedLayer);
   if(r.geojson){
@@ -1314,9 +1363,9 @@ map.on('click',e=>{
   if(mode==='closed')createSuggestion(e.latlng);
   if(mode==='route'){
     routePoints.push([e.latlng.lat,e.latlng.lng]);
-    if(routeLine)map.removeLayer(routeLine);
+    if(routeLine){map.removeLayer(routeLine);routeLayers=routeLayers.filter(l=>l!==routeLine);mapLayers=mapLayers.filter(l=>l!==routeLine);}
     routeLine=L.polyline(routePoints,{color:'#ff6600',weight:6,opacity:.9}).addTo(map);
-    if(!routeLayers.includes(routeLine)) routeLayers.push(routeLine);
+    routeLayers.push(routeLine);mapLayers.push(routeLine);if(!layerVisibility.routes)map.removeLayer(routeLine);
     currentRoutes=[...currentRoutes.filter(r=>!r.active),{active:true,points:routePoints,color:'#ff6600',label:'Détour manuel'}];
     status('Point ajouté au tracé manuel.');
     logAction('Point de route manuel ajouté');
@@ -1446,7 +1495,7 @@ function drawCorridor(id){
     corridorLayers.push(marker);
   });
 
-  selectedStreet=corridor.name;
+  syncStreet(corridor.name);
   selectedLatLng=corridor.center;
 
   status('Corridor chargé : '+corridor.name+'. Tracés intégrés comme base de travail.');
@@ -1821,21 +1870,12 @@ async function locateDocAction(id,index){
 function applyDoc2MapToChantier(id){
   if(!allow('doc'))return;
   const d=doc2mapLibrary.find(x=>x.id===id);if(!d)return;
-  selectedStreet=d.classification.street||selectedStreet;
-  if(d.classification.street)document.getElementById('streetSearch').value=d.classification.street;
-  closeDoc2Map();
-  activeTab='chantier';
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='chantier'));
-  renderPanel();
-  setTimeout(()=>{
-    if(document.getElementById('fProject'))document.getElementById('fProject').value=d.classification.ref?('Projet '+d.classification.ref):d.classification.type;
-    if(document.getElementById('fStreet'))document.getElementById('fStreet').value=d.classification.street||'';
-    if(document.getElementById('fDate')&&d.classification.date){
-      const raw=d.classification.date.replaceAll('/','-');
-      if(/^\d{4}-/.test(raw))document.getElementById('fDate').value=raw;
-    }
-    if(document.getElementById('fNote'))document.getElementById('fNote').value='Source DOC2MAP : '+d.name+'\n'+d.actions.map(a=>'• '+docActionLabel(a.type)+' — '+a.source).join('\n');
-  },0);
+  const f=draft();
+  if(d.classification.street){syncStreet(d.classification.street);selectedLatLng=null;if(selectedLayer){map.removeLayer(selectedLayer);selectedLayer=null;}document.getElementById('streetSearch').value=d.classification.street;}
+  f.project=d.classification.ref?('Projet '+d.classification.ref):(d.classification.type||f.project);
+  if(d.classification.date){const raw=d.classification.date.replaceAll('/','-');if(/^\d{4}-\d{2}-\d{2}$/.test(raw))f.date=raw;}
+  f.note='Source DOC2MAP : '+d.name+'\n'+d.actions.map(a=>'• '+docActionLabel(a.type)+' — '+a.source).join('\n');
+  closeDoc2Map();showTab('chantier');openDrawer();
   status('DOC2MAP : fiche chantier préremplie depuis le document.');
   logAction('DOC2MAP -> fiche chantier : '+d.name);
 }
@@ -1931,6 +1971,7 @@ function showTab(tab,el,fromGroup=false){
 }
 function renderPanel(){
   const c=document.getElementById('content');
+  updateProjectBar();
   const s=getStats();
   const conf=getCompliance();
 
@@ -1939,8 +1980,9 @@ function renderPanel(){
   }else if(activeTab==='dashboard'){
     c.innerHTML=`
       <div class="card">
-        <h3>Dashboard pilote</h3>
-        <p class="small">Rôle actif : <b>${esc(userRole)}</b>. Prototype local avec logique SaaS simulée.</p>
+        <h3>${userRole==='Gestionnaire'?'Centre des opérations':'Tableau de bord'}</h3>
+        <p class="small">Rôle actif : <b>${esc(userRole)}</b>. Données locales sur cet appareil.</p>
+        <div class="managerActions"><button class="primary" onclick="newChantier()">+ Nouveau chantier</button><button class="darkBtn" onclick="showTab('chantier')">Fiche et calendrier</button><button class="darkBtn" onclick="openSignTools()">Carte et panneaux</button><button class="darkBtn" onclick="showTab('terrain')">Équipes et suivi</button><button class="darkBtn" onclick="showTab('inventaire')">Chantiers enregistrés</button><button class="darkBtn" onclick="showTab('conformite')">Prévalidation</button><button class="darkBtn" onclick="showTab('data')">Rapports et exports</button></div>
         <span class="badge orange">Chantiers: ${inventory.length}</span>
         <span class="badge yellow">Pancartes carte: ${currentSigns.length}</span>
         <span class="badge blue">Routes: ${currentRoutes.length}</span>
@@ -1976,36 +2018,37 @@ function renderPanel(){
   }
 
   if(activeTab==='chantier'){
-    c.innerHTML=renderWorkSchedule('planning')+`
+    c.innerHTML=`
       <div class="card">
-        <h3>Fiche chantier actif</h3>
-        <input class="field" id="fRef" value="${generateRef()}" readonly>
-        <input class="field" id="fProject" value="Projet signalisation temporaire" placeholder="Nom du projet">
-        <input class="field" id="fClient" value="Client pilote" placeholder="Client / donneur d’ouvrage">
-        <input class="field" id="fStreet" value="${esc(selectedStreet)}" placeholder="Rue / axe">
+        <h3>${activeChantierRef?'Modifier le chantier':'Préparer un chantier'}</h3><p class="small">Les champs restent en mémoire entre les menus. Enregistrer pour conserver la fiche sur cet appareil.</p>
+        <div class="grid2"><button class="darkBtn" onclick="newChantier()">Nouveau</button><button class="darkBtn" onclick="openSignTools()">Carte et panneaux</button></div>
+        <label class="fieldLabel" for="fRef">Référence</label><input class="field" id="fRef" readonly>
+        <label class="fieldLabel" for="fProject">Nom du chantier</label><input class="field" id="fProject" value="Projet signalisation temporaire" placeholder="Nom du projet">
+        <label class="fieldLabel" for="fClient">Client</label><input class="field" id="fClient" value="Client pilote" placeholder="Client / donneur d’ouvrage">
+        <label class="fieldLabel" for="fStreet">Rue ou secteur</label><input class="field" id="fStreet" value="${esc(selectedStreet)}" placeholder="Rue / axe">
         <div class="grid2">
-          <input class="field" id="fDate" type="date" value="${today}">
-          <input class="field" id="fTime" type="time" value="08:00">
+          <div><label class="fieldLabel" for="fDate">Date</label><input class="field" id="fDate" type="date" value="${today}">
+          </div><div><label class="fieldLabel" for="fTime">Début</label><input class="field" id="fTime" type="time" value="08:00"></div>
         </div>
         <div class="grid2">
-          <input class="field" id="fEndTime" type="time" value="17:00" title="Heure de fin prévue">
-          <input class="field" id="fStaffCount" type="number" min="1" max="100" value="2" placeholder="Nombre d’employés" title="Nombre d’employés prévus">
+          <div><label class="fieldLabel" for="fEndTime">Fin prévue</label><input class="field" id="fEndTime" type="time" value="17:00" title="Heure de fin prévue">
+          </div><div><label class="fieldLabel" for="fStaffCount">Effectif prévu</label><input class="field" id="fStaffCount" type="number" min="1" max="100" value="2" placeholder="Nombre d’employés" title="Nombre d’employés prévus"></div>
         </div>
         <div class="grid2">
-          <select class="field" id="fType">
+          <div><label class="fieldLabel" for="fType">Type de travaux</label><select class="field" id="fType">
             <option>Travaux</option><option>Rue fermée</option><option>Détour</option><option>Entrave partielle</option>
             <option>Signalisation temporaire</option><option>Travaux de nuit</option><option>Intervention urgente</option>
           </select>
-          <select class="field" id="fPhase">
+          </div><div><label class="fieldLabel" for="fPhase">Phase</label><select class="field" id="fPhase">
             <option>Phase 1</option><option>Phase 2</option><option>Phase 3</option><option>Réouverture</option>
-          </select>
+          </select></div>
         </div>
-        <select class="field" id="fStatus">
+        <label class="fieldLabel" for="fStatus">Statut</label><select class="field" id="fStatus">
           <option>À préparer</option><option>Actif</option><option>Installé</option><option>À valider</option><option>Terminé</option>
         </select>
-        <input class="field" id="fTeam" value="Équipe terrain #1" placeholder="Responsable">
-        <textarea class="field" id="fNote" rows="3" placeholder="Notes terrain, intersections, durée, matériel..."></textarea>
-        <button onclick="saveChantier()">Sauvegarder chantier</button>
+        <label class="fieldLabel" for="fTeam">Équipe / responsable</label><input class="field" id="fTeam" value="Équipe terrain #1" placeholder="Responsable">
+        <label class="fieldLabel" for="fNote">Notes</label><textarea class="field" id="fNote" rows="3" placeholder="Notes terrain, intersections, durée, matériel..."></textarea>
+        <button onclick="saveChantier()">${activeChantierRef?'Mettre à jour le chantier':'Sauvegarder chantier'}</button>
       </div>
       <div class="card">
         <h3>Résumé rapide</h3>
@@ -2014,7 +2057,8 @@ function renderPanel(){
         <span class="badge red">Fermetures: ${s.closures}</span>
         <span class="badge green">Validation: ${currentValidations.length}/7</span>
         <span class="badge purple">Photos: ${simulatedPhotos.length}</span>
-      </div>`;
+      </div>`+renderWorkSchedule('planning');
+    hydrateChantier();
   }
 
   if(activeTab==='signal'){
@@ -2141,7 +2185,7 @@ function renderPanel(){
       <div class="card">
         <h3>Export / Import / PDF</h3>
         <div class="grid2">
-          <button onclick="generatePdfFromLatest()">PDF dernière fiche</button>
+          <button onclick="generatePdfFromLatest()">PDF fiche active / dernière</button>
           <button class="darkBtn" onclick="exportJson()">Exporter JSON</button>
         </div>
         <label class="fileInputLabel" style="margin-top:8px" ${can('import')?'':'hidden'}>
@@ -2209,7 +2253,7 @@ function renderValidationRows(){
 function renderInventory(){
   if(!inventory.length)return '<div class="listItem"><b>Aucune fiche</b><small>Sauvegarde un chantier pour l’ajouter ici.</small></div>';
   return inventory.map((i,idx)=>`<div class="listItem" onclick="restore(${idx})">
-    <b>${esc(i.ref)} — ${esc(i.street)}</b>
+    <b>${esc(i.project||i.ref)} — ${esc(i.street)}</b><small>${esc(i.ref)} · ${esc(i.team||'Équipe à préciser')}</small>
     <small>${esc(i.date)} ${esc(i.time)} — ${esc(i.status)} — ${esc(i.phase||'Phase 1')}<br>${(i.signs||[]).length} pancartes — ${(i.routes||[]).length} route(s)</small>
   </div>`).join('');
 }
@@ -2220,72 +2264,57 @@ function renderPdfLibrary(){
 
 /* SAVE / RESTORE */
 function collectChantier(){
-  const get=id=>document.getElementById(id)?document.getElementById(id).value:'';
-  return {
-    ref:get('fRef')||generateRef(),
-    project:get('fProject')||'Projet signalisation temporaire',
-    client:get('fClient')||'Client pilote',
-    street:get('fStreet')||selectedStreet||'Rue à préciser',
-    date:get('fDate')||today,
-    time:get('fTime')||'08:00',
-    endTime:get('fEndTime')||'',
-    staffCount:get('fStaffCount')||'',
-    type:get('fType')||'Travaux',
-    phase:get('fPhase')||'Phase 1',
-    status:get('fStatus')||'À préparer',
-    team:get('fTeam')||'Équipe terrain',
-    note:get('fNote')||'',
-    latlng:selectedLatLng,
-    signs:JSON.parse(JSON.stringify(currentSigns)),
-    routes:JSON.parse(JSON.stringify(currentRoutes)),
-    validations:JSON.parse(JSON.stringify(currentValidations)),
-    photos:JSON.parse(JSON.stringify(simulatedPhotos)),
-    stats:getStats(),
-    recommendations:getRecommendations(),
-    compliance:getCompliance(),
-    audit:JSON.parse(JSON.stringify(auditLog.slice(0,25))),
-    created:new Date().toLocaleString('fr-CA')
-  };
+ const f=draft();
+ return {...f,street:f.street||selectedStreet||'Rue à préciser',latlng:selectedLatLng,
+ signs:JSON.parse(JSON.stringify(currentSigns)),routes:JSON.parse(JSON.stringify(currentRoutes)),
+ validations:JSON.parse(JSON.stringify(currentValidations)),photos:JSON.parse(JSON.stringify(simulatedPhotos)),
+ stats:getStats(),recommendations:getRecommendations(),compliance:getCompliance(),audit:JSON.parse(JSON.stringify(auditLog.slice(0,25))),
+ created:new Date().toLocaleString('fr-CA')};
 }
 function saveChantier(){
-  if(!allow('save'))return;
-  const item=collectChantier();
-  try{
-    const next=[item,...inventory];
-    localStorage.setItem('pofino_v7_inventory',JSON.stringify(next));
-    inventory=next;
-  }catch(error){status('Sauvegarde impossible : espace local indisponible ou plein. Exportez votre chantier en JSON.');return;}
-  status('Chantier sauvegardé localement.');
-  logAction('Chantier sauvegardé : '+item.ref);
-  renderPanel();
+ if(!allow('save'))return;
+ const f=draft();
+ if(!String(f.project||'').trim()||!String(f.street||selectedStreet||'').trim()||!f.date||!f.time){status('Complétez le nom, la rue, la date et l’heure avant d’enregistrer.');showTab('chantier');openDrawer();return false;}
+ const item=collectChantier();
+ const idx=activeChantierRef?inventory.findIndex(i=>i.ref===activeChantierRef):-1;
+ const next=inventory.slice();
+ if(idx>=0){const old=next[idx];next[idx]={...old,...item,ref:old.ref,created:old.created||item.created,updated:new Date().toLocaleString('fr-CA')};}
+ else{if(next.some(i=>i.ref===item.ref)){item.ref=generateRef();f.ref=item.ref;}next.unshift(item);}
+ try{localStorage.setItem('pofino_v7_inventory',JSON.stringify(next));}catch(e){status('Sauvegarde impossible : espace local indisponible ou plein. Exportez votre chantier en JSON.');return false;}
+ inventory=next;activeChantierRef=item.ref;savedFingerprint=fingerprint();
+ status(idx>=0?'Chantier mis à jour.':'Chantier sauvegardé localement.');
+ logAction('Fiche enregistrée : '+item.ref);renderPanel();return true;
 }
 function restore(idx){
-  const item=inventory[idx];
-  clearVisualMap(false);
-  selectedStreet=item.street;
-  selectedLatLng=item.latlng;
-  currentSigns=JSON.parse(JSON.stringify(item.signs||[]));
-  currentRoutes=JSON.parse(JSON.stringify(item.routes||[]));
-  currentValidations=JSON.parse(JSON.stringify(item.validations||[]));
-  simulatedPhotos=JSON.parse(JSON.stringify(item.photos||[]));
-  if(item.latlng)highlightRoad(item.latlng[0],item.latlng[1],item.street);
-  currentSigns.forEach(s=>addMarker([s.lat,s.lng],s.label,s.color,false,s.signName||null,s));
-  currentRoutes.forEach(r=>{
-    const line=L.polyline(r.points,{color:r.color||'#ff6600',weight:6,opacity:.9,dashArray:r.auto?'10,8':null}).addTo(map);
-    line.bindPopup(esc(r.label||'Détour'));
-    routeLayers.push(line);
-    mapLayers.push(line);
-  });
-  status('Chantier restauré : '+item.ref);
-  logAction('Chantier restauré : '+item.ref);
-  renderPanel();
+ const item=inventory[idx];if(!item||!mayLeaveProject())return;
+ clearVisualMap(false);
+ selectedStreet=item.street||'';selectedLatLng=item.latlng||null;
+ chantierDraft={...freshChantier(),...Object.fromEntries(Object.values(chantierFields).filter(k=>item[k]!==undefined&&item[k]!==null).map(k=>[k,String(item[k])]))};
+ activeChantierRef=item.ref;
+ currentSigns=JSON.parse(JSON.stringify(item.signs||[]));
+ currentRoutes=JSON.parse(JSON.stringify(item.routes||[])).map(r=>({...r,active:false}));
+ currentValidations=JSON.parse(JSON.stringify(item.validations||[]));
+ simulatedPhotos=JSON.parse(JSON.stringify(item.photos||[]));
+ auditLog=JSON.parse(JSON.stringify(item.audit||[]));
+ document.getElementById('streetSearch').value=selectedStreet;
+ if(item.latlng)highlightRoad(item.latlng[0],item.latlng[1],item.street);
+ currentSigns.forEach(s=>addMarker([s.lat,s.lng],s.label,s.color,false,s.signName||null,s));
+ currentRoutes.forEach(r=>{
+  if(!Array.isArray(r.points)||!r.points.length)return;
+  const line=L.polyline(r.points,{color:r.color||'#ff6600',weight:6,opacity:.9,dashArray:r.auto?'10,8':null}).addTo(map);
+  line.bindPopup(esc(r.label||'Détour'));routeLayers.push(line);mapLayers.push(line);if(!layerVisibility.routes)map.removeLayer(line);
+ });
+ mode='move';setMode('move');savedFingerprint=fingerprint();
+ status('Chantier restauré : '+item.ref);logAction('Chantier restauré : '+item.ref);
+ if(can('save')){showTab('chantier');openDrawer();}else renderPanel();
 }
 
 /* PDF / JSON */
 function generatePdfFromLatest(){
   if(!allow('pdf'))return;
-  if(!inventory.length&&can('save'))saveChantier();
-  if(!inventory.length){status('Aucune fiche disponible.');return;}
+  const active=activeChantierRef?inventory.find(i=>i.ref===activeChantierRef):null;
+  if(active){if(hasUnsavedWork()){status('Enregistrez vos modifications avant de produire le PDF.');showTab('chantier');openDrawer();return;}generatePdf(active);return;}
+  if(!inventory.length){status('Enregistrez un chantier avant de produire un PDF.');showTab('chantier');openDrawer();return;}
   generatePdf(inventory[0]);
 }
 function generatePdf(item){
@@ -2411,6 +2440,7 @@ function importJson(event){
 /* CLEAR */
 function clearVisualMap(reset=true){
   if(reset&&!allow('clear'))return;
+  if(reset&&(currentSigns.length||currentRoutes.length||currentValidations.length||simulatedPhotos.length)&&!confirm('Effacer les éléments du plan actif ? Les fiches enregistrées restent conservées.'))return;
   routingGeneration++;
   mapLayers.forEach(l=>{try{map.removeLayer(l)}catch(e){}});
   mapLayers=[]; markerLayers=[]; routeLayers=[];
