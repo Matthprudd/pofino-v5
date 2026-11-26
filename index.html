@@ -957,8 +957,8 @@ const simulatedAssets=[
 let userRole='Démo';
 /* Restrictions de démonstration côté navigateur, pas une frontière de sécurité. */
 const rolePolicies={
- 'Admin':{groups:['overview','operations','plans','resources','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','deleteDoc','pdf','export','import','corridor'],home:'dashboard'},
- 'Gestionnaire':{groups:['overview','operations','plans','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','pdf','export','corridor'],home:'dashboard'},
+ 'Admin':{groups:['overview','operations','plans','resources','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data','employees'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','deleteDoc','pdf','export','import','corridor','employees'],home:'dashboard'},
+ 'Gestionnaire':{groups:['overview','operations','plans','teams','office'],tabs:['dashboard','chantier','inventaire','signal','corridors','ia','terrain','conformite','doc2map','data','employees'],modes:['move','work','detour','closed','route'],caps:['sign','save','clear','terrain','doc','pdf','export','corridor','employees'],home:'dashboard'},
  'Terrain':{groups:['overview','operations','plans','teams'],tabs:['dashboard','inventaire','signal','terrain'],modes:['move','work','detour'],caps:['sign','terrain'],home:'terrain'},
  'Client observateur':{groups:['overview','operations'],tabs:['dashboard','inventaire'],modes:['move'],caps:[],home:'dashboard'}
 };
@@ -1002,6 +1002,8 @@ let pdfLibrary=JSON.parse(localStorage.getItem('pofino_v7_pdf')||'[]');
 let doc2mapLibrary=JSON.parse(localStorage.getItem('pofino_v73_doc2map')||'[]');
 let doc2mapProposalLayers=[];
 let chantierDraft=null,activeChantierRef=null,savedFingerprint=null;
+let employees=readEmployees(),editingEmployeeId=null;
+function readEmployees(){try{const list=JSON.parse(localStorage.getItem('pofino_v73_employees')||'[]');return Array.isArray(list)?list.filter(e=>e&&typeof e.id==='string'&&typeof e.name==='string'):[];}catch(e){return [];}}
 const chantierFields={fRef:'ref',fProject:'project',fClient:'client',fStreet:'street',fDate:'date',fTime:'time',fEndTime:'endTime',fStaffCount:'staffCount',fType:'type',fPhase:'phase',fStatus:'status',fTeam:'team',fNote:'note'};
 let activeDoc2MapId='';
 
@@ -1024,7 +1026,7 @@ function generateRef(){
   const prefix=`POF-${String(d.getFullYear()).slice(2)}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-`;let n=inventory.length+1;while(inventory.some(i=>i.ref===prefix+String(n).padStart(4,'0')))n++;return prefix+String(n).padStart(4,'0');
 }
 function freshChantier(){
- return {ref:generateRef(),project:'Projet signalisation temporaire',client:'Client pilote',street:selectedStreet||'',date:today,time:'08:00',endTime:'17:00',staffCount:'2',type:'Travaux',phase:'Phase 1',status:'À préparer',team:'Équipe terrain #1',note:''};
+ return {ref:generateRef(),project:'Projet signalisation temporaire',client:'Client pilote',street:selectedStreet||'',date:today,time:'08:00',endTime:'17:00',staffCount:'2',type:'Travaux',phase:'Phase 1',status:'À préparer',team:'Équipe terrain #1',note:'',assignments:[]};
 }
 function draft(){if(!chantierDraft)chantierDraft=freshChantier();return chantierDraft;}
 function hydrateChantier(){
@@ -1059,6 +1061,78 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
  const key=chantierFields[e.target?.id];if(key&&key!=='ref'&&can('save')){draft()[key]=e.target.value;updateProjectBar();}
 });
+/* Registre des employés et affectations nominatives — données locales */
+function assignmentList(item){return Array.isArray(item?.assignments)?item.assignments.filter(a=>a&&typeof a.id==='string'&&typeof a.name==='string'):[];}
+function employeeName(a){return a.name;}
+function employeeRoleOptions(){return ['Signaleur','Chef d’équipe','Installateur','Conducteur','Autre'];}
+function storeEmployees(next){try{localStorage.setItem('pofino_v73_employees',JSON.stringify(next));employees=next;return true;}catch(e){status('Impossible d’enregistrer le registre local.');return false;}}
+function editEmployee(id){if(!allow('employees'))return;editingEmployeeId=id||null;showTab('employees');openDrawer();}
+function saveEmployee(){
+ if(!allow('employees'))return;
+ const name=document.getElementById('empName').value.trim(),role=document.getElementById('empRole').value,availability=document.getElementById('empAvailability').value;
+ if(!name){status('Indiquez le nom de l’employé.');document.getElementById('empName').focus();return;}
+ const old=employees.find(e=>e.id===editingEmployeeId);
+ if(employees.some(e=>e.id!==editingEmployeeId&&e.name.toLocaleLowerCase('fr')===name.toLocaleLowerCase('fr'))){status('Ce nom existe déjà. Ajoutez un identifiant distinctif si nécessaire.');return;}
+ const item={id:old?.id||(globalThis.crypto?.randomUUID?.()||('emp-'+Date.now()+'-'+Math.random().toString(36).slice(2))),name,role,availability,archived:old?.archived||false};
+ if(!storeEmployees(old?employees.map(e=>e.id===old.id?item:e):[...employees,item]))return;
+ editingEmployeeId=null;renderPanel();status('Employé enregistré : '+name+'.');
+}
+function archiveEmployee(id){
+ if(!allow('employees'))return;
+ const emp=employees.find(e=>e.id===id);if(!emp)return;
+ if(!emp.archived&&!confirm('Archiver cet employé ? Les affectations existantes sont conservées.'))return;
+ if(storeEmployees(employees.map(e=>e.id===id?{...e,archived:!e.archived}:e))){editingEmployeeId=null;renderPanel();status(emp.archived?'Employé réactivé.':'Employé archivé.');}
+}
+function scheduleWindow(item){
+ const parse=(date,time)=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||!/^\d{2}:\d{2}$/.test(time||''))return NaN;return Date.parse(date+'T'+time+':00Z');};
+ const start=parse(item.date,item.time),rawEnd=parse(item.date,item.endTime);if(!Number.isFinite(start)||!Number.isFinite(rawEnd)||start===rawEnd)return null;
+ return [start,rawEnd<start?rawEnd+86400000:rawEnd];
+}
+function employeeConflicts(item){
+ if(item.status==='Terminé')return [];
+ const win=scheduleWindow(item);if(!win)return [];
+ const out=[];for(const other of inventory){if(!other||other.ref===activeChantierRef||other.status==='Terminé')continue;
+ const w=scheduleWindow(other);if(!w||!(win[0]<w[1]&&w[0]<win[1]))continue;
+ for(const a of assignmentList(item)){if(assignmentList(other).some(b=>b.id===a.id))out.push({name:a.name,ref:other.ref,project:other.project||other.ref,date:other.date,time:other.time,end:other.endTime});}}
+ return out;
+}
+function renderAssignmentSummary(){
+ const f=draft(),assigned=assignmentList(f),conflicts=employeeConflicts(f),planned=Number(f.staffCount)||0;
+ return '<div class="small">Affectés : <b>'+assigned.length+'</b> / '+esc(String(planned||0))+' prévus</div>'+
+ (planned>assigned.length?'<div class="warning">'+(planned-assigned.length)+' poste(s) restent à attribuer.</div>':planned<assigned.length?'<div class="warning">Effectif attribué supérieur à l’effectif prévu.</div>':'')+
+ (!scheduleWindow(f)&&assigned.length?'<div class="warning">Indiquez un début et une fin distincts pour vérifier les conflits.</div>':'')+
+ (conflicts.length?conflicts.map(x=>'<div class="dangerBox">'+esc(x.name)+' — conflit avec '+esc(x.project)+' ('+esc(x.date)+' '+esc(x.time)+'–'+esc(x.end)+').</div>').join(''):'');
+}
+function refreshAssignmentSummary(){const el=document.getElementById('assignmentSummary');if(el)el.innerHTML=renderAssignmentSummary();}
+function toggleEmployeeAssignment(id){
+ if(!allow('employees'))return;
+ const f=draft(),existing=assignmentList(f),emp=employees.find(e=>e.id===id);
+ if(existing.some(a=>a.id===id)){f.assignments=existing.filter(a=>a.id!==id);}
+ else{if(!emp||emp.archived||emp.availability!=='Disponible'){status('Employé non disponible pour une nouvelle affectation.');return;}
+ f.assignments=[...existing,{id:emp.id,name:emp.name,role:emp.role}];}
+ renderPanel();status('Affectations modifiées. Enregistrez la fiche pour les conserver.');
+}
+function renderEmployeeAssignment(){
+ const assigned=assignmentList(draft()),ids=new Set(assigned.map(a=>a.id)),list=employees.filter(e=>!e.archived||ids.has(e.id));
+ const missing=assigned.filter(a=>!employees.some(e=>e.id===a.id));
+ return '<div class="card"><h3>Affectations individuelles</h3><p class="small">Sélectionnez les employés disponibles. Les noms sont conservés dans la fiche au moment de l’affectation.</p><div id="assignmentSummary">'+renderAssignmentSummary()+'</div>'+
+ (list.length||missing.length?[...list,...missing.map(a=>({...a,archived:true,availability:'Archivé / absent du registre'}))].map(e=>{
+ const checked=ids.has(e.id),blocked=!checked&&(e.archived||e.availability!=='Disponible');
+ return '<label class="listItem" style="display:flex;gap:9px;align-items:center"><input type="checkbox" data-assign-id="'+esc(e.id)+'" '+(checked?'checked ':'')+(blocked?'disabled ':'')+'><span><b>'+esc(e.name)+'</b><small>'+esc(e.role||'Employé')+' · '+esc(e.archived?'Archivé':e.availability)+'</small></span></label>';
+ }).join(''):'<p class="small">Aucun employé enregistré.</p>')+
+ '<button class="darkBtn" onclick="editEmployee(null)">Gérer les employés</button></div>';
+}
+function renderEmployees(){
+ const e=employees.find(x=>x.id===editingEmployeeId),available=employees.filter(x=>!x.archived&&x.availability==='Disponible').length;
+ return '<div class="card"><h3>Registre des employés</h3><p class="small">Registre local, sans compte de connexion. '+available+' disponible(s) sur '+employees.filter(x=>!x.archived).length+' actif(s).</p><label class="fieldLabel" for="empName">Nom / identifiant</label><input class="field" id="empName" maxlength="100" value="'+esc(e?.name||'')+'" placeholder="Prénom et nom"><label class="fieldLabel" for="empRole">Fonction</label><select class="field" id="empRole">'+employeeRoleOptions().map(r=>'<option '+(e?.role===r?'selected':'')+'>'+esc(r)+'</option>').join('')+'</select><label class="fieldLabel" for="empAvailability">Disponibilité</label><select class="field" id="empAvailability">'+['Disponible','Indisponible'].map(v=>'<option '+(e?.availability===v?'selected':'')+'>'+v+'</option>').join('')+'</select><button onclick="saveEmployee()">'+(e?'Mettre à jour l’employé':'Ajouter un employé')+'</button> <button class="darkBtn" onclick="editEmployee(null)">Nouveau</button></div>'+
+ '<div class="card"><h3>Employés et affectations enregistrées</h3>'+ (employees.length?employees.map(x=>{
+ const jobs=inventory.filter(i=>i.status!=='Terminé'&&assignmentList(i).some(a=>a.id===x.id)).sort((a,b)=>(a.date+' '+a.time).localeCompare(b.date+' '+b.time));
+ return '<div class="listItem"><b>'+esc(x.name)+'</b><small>'+esc(x.role)+' · '+esc(x.archived?'Archivé':x.availability)+'</small><small>'+jobs.length+' chantier(s) non terminé(s)</small>'+jobs.slice(0,8).map(j=>'<small>'+esc(j.date)+' '+esc(j.time)+' — '+esc(j.project||j.ref)+'</small>').join('')+'<div class="grid2"><button class="darkBtn" data-edit-employee="'+esc(x.id)+'">Modifier</button><button class="darkBtn" data-archive-employee="'+esc(x.id)+'">'+(x.archived?'Réactiver':'Archiver')+'</button></div></div>';
+ }).join(''):'<p class="small">Ajoutez votre premier employé.</p>')+'<button class="darkBtn" onclick="showTab(\'chantier\')">Retour à la fiche chantier</button></div>';
+}
+document.addEventListener('change',e=>{if(e.target?.dataset?.assignId)toggleEmployeeAssignment(e.target.dataset.assignId);if(['fDate','fTime','fEndTime','fStaffCount','fStatus'].includes(e.target?.id))refreshAssignmentSummary();});
+document.addEventListener('input',e=>{if(['fDate','fTime','fEndTime','fStaffCount'].includes(e.target?.id))refreshAssignmentSummary();});
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-edit-employee],[data-archive-employee]');if(!b)return;if(b.dataset.editEmployee)editEmployee(b.dataset.editEmployee);if(b.dataset.archiveEmployee)archiveEmployee(b.dataset.archiveEmployee);});
 function classByColor(color){
   if(color==='#ffd400')return 'yellow';
   if(color==='#d40000')return 'red';
@@ -1923,7 +1997,7 @@ function renderWorkSchedule(kind){
  (list.length?list.slice(0,30).map(item=>'<div class="listItem"><b>'+esc(item.date)+' '+esc(item.time||'')+' — '+esc(item.project||'Chantier')+'</b>'+
  '<small>'+esc(item.street||'Rue à préciser')+' · '+esc(item.status||'À préparer')+
  '<br>Équipe : '+esc(item.team||'Non affectée')+' · Effectif : '+esc(item.staffCount||'à préciser')+
- (item.endTime?' · Fin prévue : '+esc(item.endTime):'')+'</small></div>').join(''):
+ (item.endTime?' · Fin prévue : '+esc(item.endTime):'')+(can('employees')&&assignmentList(item).length?'<br>Employés : '+assignmentList(item).map(a=>esc(a.name)).join(', '):'')+'</small></div>').join(''):
  '<p class="small">Aucun chantier planifié et sauvegardé.</p>')+'</div>';
 }
 const navigationGroups={
@@ -1931,7 +2005,7 @@ const navigationGroups={
   operations:{label:'Chantiers',tabs:[['chantier','Préparer'],['inventaire','Chantiers sauvegardés']]},
   plans:{label:'Plans',tabs:[['signal','Panneaux'],['corridors','Rues et tracés'],['ia','SignalIA']]},
   resources:{label:'Équipement',tabs:[['inventaire','Stocks et matériel'],['signal','Implantation']]},
-  teams:{label:'Équipes',tabs:[['terrain','Interventions terrain'],['chantier','Affectations'],['conformite','Contrôle']]},
+  teams:{label:'Équipes',tabs:[['employees','Employés'],['chantier','Affectations'],['terrain','Interventions terrain'],['conformite','Contrôle']]},
   office:{label:'Documents',tabs:[['doc2map','DOC2MAP'],['conformite','Conformité'],['data','Exports et archives']]}
 };
 let activeGroup='overview';
@@ -1982,7 +2056,7 @@ function renderPanel(){
       <div class="card">
         <h3>${userRole==='Gestionnaire'?'Centre des opérations':'Tableau de bord'}</h3>
         <p class="small">Rôle actif : <b>${esc(userRole)}</b>. Données locales sur cet appareil.</p>
-        <div class="managerActions"><button class="primary" onclick="newChantier()">+ Nouveau chantier</button><button class="darkBtn" onclick="showTab('chantier')">Fiche et calendrier</button><button class="darkBtn" onclick="openSignTools()">Carte et panneaux</button><button class="darkBtn" onclick="showTab('terrain')">Équipes et suivi</button><button class="darkBtn" onclick="showTab('inventaire')">Chantiers enregistrés</button><button class="darkBtn" onclick="showTab('conformite')">Prévalidation</button><button class="darkBtn" onclick="showTab('data')">Rapports et exports</button></div>
+        <div class="managerActions"><button class="primary" onclick="newChantier()">+ Nouveau chantier</button><button class="darkBtn" onclick="showTab('chantier')">Fiche et calendrier</button><button class="darkBtn" onclick="openSignTools()">Carte et panneaux</button><button class="darkBtn" onclick="showTab('employees')">Employés et affectations</button><button class="darkBtn" onclick="showTab('inventaire')">Chantiers enregistrés</button><button class="darkBtn" onclick="showTab('conformite')">Prévalidation</button><button class="darkBtn" onclick="showTab('data')">Rapports et exports</button></div>
         <span class="badge orange">Chantiers: ${inventory.length}</span>
         <span class="badge yellow">Pancartes carte: ${currentSigns.length}</span>
         <span class="badge blue">Routes: ${currentRoutes.length}</span>
@@ -2059,6 +2133,10 @@ function renderPanel(){
         <span class="badge purple">Photos: ${simulatedPhotos.length}</span>
       </div>`+renderWorkSchedule('planning');
     hydrateChantier();
+    if(can('employees')){const card=c.querySelector('.card');card.insertAdjacentHTML('beforeend',renderEmployeeAssignment());}
+  }
+  if(activeTab==='employees'&&can('employees')){
+    c.innerHTML=renderEmployees();
   }
 
   if(activeTab==='signal'){
@@ -2275,6 +2353,9 @@ function saveChantier(){
  if(!allow('save'))return;
  const f=draft();
  if(!String(f.project||'').trim()||!String(f.street||selectedStreet||'').trim()||!f.date||!f.time){status('Complétez le nom, la rue, la date et l’heure avant d’enregistrer.');showTab('chantier');openDrawer();return false;}
+ const assigned=assignmentList(f);
+ if(assigned.length&&f.status!=='Terminé'&&!scheduleWindow(f)){status('Indiquez une heure de début et de fin distinctes pour attribuer les employés.');showTab('chantier');openDrawer();return false;}
+ const conflicts=employeeConflicts(f);if(conflicts.length){status('Conflit d’horaires : '+conflicts.map(x=>x.name+' / '+x.project).join(', '));showTab('chantier');openDrawer();return false;}
  const item=collectChantier();
  const idx=activeChantierRef?inventory.findIndex(i=>i.ref===activeChantierRef):-1;
  const next=inventory.slice();
@@ -2290,6 +2371,7 @@ function restore(idx){
  clearVisualMap(false);
  selectedStreet=item.street||'';selectedLatLng=item.latlng||null;
  chantierDraft={...freshChantier(),...Object.fromEntries(Object.values(chantierFields).filter(k=>item[k]!==undefined&&item[k]!==null).map(k=>[k,String(item[k])]))};
+ chantierDraft.assignments=JSON.parse(JSON.stringify(assignmentList(item)));
  activeChantierRef=item.ref;
  currentSigns=JSON.parse(JSON.stringify(item.signs||[]));
  currentRoutes=JSON.parse(JSON.stringify(item.routes||[])).map(r=>({...r,active:false}));
@@ -2406,7 +2488,7 @@ function generatePdf(item){
 }
 function exportJson(){
   if(!allow('export'))return;
-  const data={version:'POFINO V7',exported:new Date().toISOString(),inventory,active:collectChantier()};
+  const data={version:'POFINO V7',exported:new Date().toISOString(),inventory,active:collectChantier(),employees};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -2426,8 +2508,10 @@ function importJson(event){
     try{
       const data=JSON.parse(reader.result);
       if(Array.isArray(data.inventory)){
+        if(!confirm('Remplacer les chantiers enregistrés par ceux du fichier ?'))return;
+        if(Array.isArray(data.employees)){const imported=data.employees.filter(e=>e&&typeof e.id==='string'&&typeof e.name==='string');if(imported.length!==data.employees.length)throw Error('Registre invalide');const merged=new Map(employees.map(e=>[e.id,e]));for(const e of imported)merged.set(e.id,e);if(!storeEmployees([...merged.values()]))return;}
+        localStorage.setItem('pofino_v7_inventory',JSON.stringify(data.inventory));
         inventory=data.inventory;
-        localStorage.setItem('pofino_v7_inventory',JSON.stringify(inventory));
         status('Import JSON réussi : inventaire remplacé.');
         logAction('Import JSON réussi');
         renderPanel();
