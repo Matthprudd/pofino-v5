@@ -414,6 +414,39 @@ textarea.field{resize:vertical;}
 .docRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .docGrow{flex:1;}
 
+/* V7.3 — accès direct aux outils de carte et aux panneaux */
+.mapTools .tool{flex:none}
+.mapTools .tool small{white-space:nowrap}
+#signToolsBtn{border-color:var(--orange)}
+.drawerHandle button{font-size:13px;line-height:1.1}
+.drawerHandle button small{display:block;font-size:9px}
+@media(max-width:900px){
+ .startScreen{overflow-y:auto;align-items:flex-start;padding:12px}
+ .startCard{margin:auto;padding:16px}
+ .roleGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .roleCard{padding:11px}
+ .startSide{padding:12px}
+ .mapTools{top:77px;left:8px;right:8px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;padding:5px;max-width:none;overflow:visible}
+ .mapTools .tool{width:100%;min-width:0;height:44px;font-size:19px;border-radius:9px}
+ .mapTools .tool small{font-size:8px;margin-top:0}
+ .miniStatus{display:block;top:140px;left:8px;right:65px;max-width:none;padding:7px 9px;border-radius:10px;font-size:11px;pointer-events:none}
+ .drawer{top:auto;left:8px;right:8px;bottom:66px;width:auto;height:45vh;height:45dvh;max-height:calc(100dvh - 220px);min-height:0;transform:none}
+ .drawer.collapsed{transform:translateY(calc(100% + 90px));pointer-events:none;visibility:hidden}
+ .drawerHandle,.drawer.collapsed + .drawerHandle{top:137px;right:8px;bottom:auto;transform:none}
+ .drawerHandle button{width:48px;height:42px;border-radius:10px}
+ .pofNav{padding:6px;gap:4px}
+ .quickRoads{z-index:9997}
+ .leaflet-bottom.leaflet-left{bottom:64px}
+}
+@media(max-width:390px){
+ .mapTools .tool{height:42px;font-size:17px}
+ .mapTools .tool small{font-size:7px}
+ .startTitle b{font-size:29px}
+}
+@media(max-height:600px) and (max-width:900px){
+ .drawer{bottom:56px}
+ .leaflet-bottom.leaflet-left{bottom:54px}
+}
 </style>
 </head>
 
@@ -469,7 +502,8 @@ textarea.field{resize:vertical;}
 
 <div id="results" class="results"></div>
 
-<div class="mapTools">
+<div class="mapTools" aria-label="Outils cartographiques">
+  <button type="button" class="tool" id="signToolsBtn" onclick="openSignTools()" title="Catalogue des panneaux" aria-label="Panneaux de signalisation">🚧<small>PANNEAUX</small></button>
   <button class="tool active" id="moveBtn" onclick="setMode('move')" title="Déplacement">✋<small>MOVE</small></button>
   <button class="tool" id="workBtn" onclick="setMode('work')" title="Travaux">🚧<small>TRAV</small></button>
   <button class="tool" id="detourBtn" onclick="setMode('detour')" title="Détour">↪<small>DET</small></button>
@@ -494,7 +528,7 @@ textarea.field{resize:vertical;}
   <div class="content" id="content"></div>
 </div>
 
-<div class="drawerHandle"><button onclick="toggleDrawer()">☰</button></div>
+<div class="drawerHandle"><button type="button" id="drawerToggle" onclick="toggleDrawer()" aria-label="Ouvrir ou fermer le menu" aria-controls="drawer" aria-expanded="true">☰<small>Menu</small></button></div>
 
 
 <div id="docModal" class="docModal hidden">
@@ -960,11 +994,26 @@ function loginAs(role){
   status('Connecté en mode '+role+'. Prototype local V7 actif.');
   logAction('Connexion simulée : '+role);
   renderPanel();
+  if(isMobileMap())setDrawerCollapsed(true);
+  map.invalidateSize();
 }
 
 /* DRAWER */
-function toggleDrawer(){drawerCollapsed=!drawerCollapsed;document.getElementById('drawer').classList.toggle('collapsed',drawerCollapsed);}
-function openDrawer(){drawerCollapsed=false;document.getElementById('drawer').classList.remove('collapsed');}
+function isMobileMap(){return window.matchMedia('(max-width: 900px)').matches;}
+function setDrawerCollapsed(value){
+  drawerCollapsed=value;
+  document.getElementById('drawer').classList.toggle('collapsed',value);
+  document.getElementById('drawerToggle').setAttribute('aria-expanded',String(!value));
+  document.getElementById('drawer').inert=value;
+}
+function toggleDrawer(){setDrawerCollapsed(!drawerCollapsed);}
+function openDrawer(){setDrawerCollapsed(false);}
+function openSignTools(){
+  setMode('move');
+  showTab('signal');
+  openDrawer();
+  status('Panneaux : choisissez une référence. Sur la carte, déplacez le panneau au besoin.');
+}
 
 /* MAP BASE / LAYERS */
 function setBaseLayer(name){
@@ -999,6 +1048,7 @@ function setMode(m){
     route:'Mode tracé. Clique plusieurs points pour tracer un détour manuel.'
   };
   status(messages[m]);
+  if(isMobileMap())setDrawerCollapsed(true);
 }
 
 /* ROADS */
@@ -1082,10 +1132,12 @@ function addQuebecSign(name){
   if(!sign)return;
   const base=selectedLatLng?{lat:selectedLatLng[0],lng:selectedLatLng[1]}:map.getCenter();
   const offset=(currentSigns.length%10)*0.00034;
+  if(!layerVisibility.signs)toggleLayer('signs');
   addMarker({lat:base.lat+offset,lng:base.lng+offset},sign.label,sign.color,true,sign.name);
   status(`${sign.name} ajouté sur la carte.`);
   logAction('Pancarte ajoutée : '+sign.name);
   renderPanel();
+  if(isMobileMap())setDrawerCollapsed(true);
 }
 const signMarkerByRecord=new WeakMap();
 function removeOneSign(label){
@@ -2063,6 +2115,8 @@ function renderSignalPanel(){
   return `
     <div class="card">
       <h3>Pancartes et dispositifs — ${quebecSigns.length} références de travail</h3>
+      <p class="small">Pour choisir la position, utilisez MOVE puis touchez la carte avant de sélectionner un panneau. Vous pouvez ensuite déplacer le panneau sur la carte.</p>
+      <button type="button" class="darkBtn" onclick="setMode('move');setDrawerCollapsed(true)">Retour à la carte</button>
       <p class="small">Catalogue de planification, non une reproduction certifiée du MTMD. Vérifier le Tome V avant installation. <a href="https://www.rsr.transports.gouv.qc.ca/Dispositifs/Accueil.aspx" target="_blank" rel="noopener noreferrer" style="color:#ffd400">Répertoire officiel des dispositifs</a>.</p>
       <div class="signCategoryGrid">${cats}</div>
       <div class="signGrid">${grid}</div>
